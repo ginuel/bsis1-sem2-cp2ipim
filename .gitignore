@@ -1,6 +1,6 @@
 tools/
-# assets/
-# lib/
+assets/
+lib/
 src/
 bin/
 backup/
