@@ -4,6 +4,7 @@ import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
 import com.googlecode.lanterna.*;
+import com.googlecode.lanterna.*;
 import com.googlecode.lanterna.gui2.*;
 import com.googlecode.lanterna.gui2.dialogs.*;
 import org.mindrot.jbcrypt.BCrypt;
@@ -29,6 +30,20 @@ public class Game {
 	private static int pondID = -1;
 
 	public static void main(String[] args) {
+		// Do this upon exit
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			if (screen != null) {
+				try {
+					screen.stopScreen();
+				} catch (Exception error2) {
+					error2.printStackTrace();
+				}
+			}
+			GameDatabase.save();
+			GameDatabase.close();
+			GameSound.close();
+		}));
+
 		try {
 			Terminal terminal = new DefaultTerminalFactory().createTerminal();
 			screen = new TerminalScreen(terminal);
@@ -37,7 +52,7 @@ public class Game {
 
 			state = State.BANNER;
 
-			while (true) {
+			while (state != State.END) {
 				try {
 					switch (state) {
 						case BANNER:
@@ -77,23 +92,31 @@ public class Game {
 							showCombat();
 							state = State.MAP;
 							break;
-						case END:
-							return;
 					}
 				} catch (Exception error3) {
 					error3.printStackTrace();
 				}
-			}
+			} // while loop
 		} catch (Exception error) {
 			error.printStackTrace();
 		} finally {
-			if (screen != null) {
-				try {
-					screen.stopScreen();
-				} catch (Exception error2) {
-					error2.printStackTrace();
+			System.exit(0);
+		}
+	}
+
+	private static void manageWindow(BasicWindow window) {
+		try {
+			gui.addWindow(window);
+			while (gui.getWindows().contains(window)) {
+				KeyStroke key = screen.pollInput();
+				if (key != null) {
+					gui.handleInput(key);
 				}
+				gui.updateScreen();
+				Thread.sleep(10);
 			}
+		} catch (Exception error) {
+			error.printStackTrace();		
 		}
 	}
 
@@ -152,7 +175,6 @@ public class Game {
 			
 		}).start();
 
-		
 		gui.addWindowAndWait(window);
 	}
 
@@ -193,7 +215,7 @@ public class Game {
 
 		loginButton.takeFocus();
 		
-		gui.addWindowAndWait(window);
+		manageWindow(window);
 	}
 
 	private static void showLogin() {
@@ -738,7 +760,7 @@ public class Game {
 		});
 
 
-		new Thread(() -> {
+		Thread combatThread = new Thread(() -> {
 			GameSound.playAttackSFX();
 			boolean isDead = false;
 			while (!isDead) {
@@ -763,15 +785,15 @@ public class Game {
 					}
 
 					scoresLabel.setText(GameCombat.getScores());
-				} catch (Exception error) {
-					error.printStackTrace();
-				}
+				} catch (Exception error) {}
 			}
 
 			GameSound.playAttackSFX();
 			MessageDialog.showMessageDialog(gui, "Game Over!", GameCombat.getScores(), MessageDialogButton.OK);
 			window.close();
-		}).start();
+		});
+
+		combatThread.start();
 
 		panel.addComponent(lastFishKilledPanel);
 		panel.addComponent(lastFishKilledLabel);
@@ -780,5 +802,7 @@ public class Game {
 		panel.addComponent(combatPanel);
 		
 		gui.addWindowAndWait(window);
+
+		combatThread.interrupt();
 	}
 }

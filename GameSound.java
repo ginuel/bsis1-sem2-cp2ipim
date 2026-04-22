@@ -22,6 +22,10 @@ public class GameSound {
 		}
 	}
 
+	public static void close() {
+		attackSfx.close();
+	}
+
 	public static void playAttackSFX() {
 		try {
 			if (attackSfx == null) {

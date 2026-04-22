@@ -24,6 +24,14 @@ public class GameDatabase {
 		}
 	}
 
+	public static void close() {
+		try {
+			connection.close();
+		} catch (Exception error) {
+			error.printStackTrace();
+		}
+	}
+
 	public static void waitForMariaDB() {
 		// retry and wait 1 sec until connection is OK
 		while (connection == null) {
