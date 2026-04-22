@@ -30,13 +30,11 @@ public class GameDatabase {
 			try {
 				getConnection();
 				Thread.sleep(1000); 
-			} catch (Exception error) {
-				error.printStackTrace();
-			}
+			} catch (Exception error) {}
 		}
 	}
 
-	public static Connection getConnection() throws Exception { 
+	public static Connection getConnection() { 
 		try {
 			// make a connection only if it doesn't exist
 			if (connection == null || connection.isClosed()) {
@@ -49,9 +47,7 @@ public class GameDatabase {
 					props.getProperty("db.user"), 
 					props.getProperty("db.password"));
 			}
-		} catch (Exception error) {
-			throw error;
-		}
+		} catch (Exception error) {}
 		return connection;
 	}
 
@@ -83,8 +79,8 @@ public class GameDatabase {
 			}
 
 			return isSuccessful;
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (Exception error) {
+			error.printStackTrace();
 		}
 
 		return false;

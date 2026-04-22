@@ -39,6 +39,7 @@ public class GameCombat {
 	private static boolean isPaused;
 	private static long pausedTime,  pauseStart; 
 
+	private static boolean isCombat;
 	private static long combatTime, combatStart;
 
 	private static long sec;
@@ -238,15 +239,18 @@ public class GameCombat {
 
 		combatTime = 0;
 		combatStart = System.currentTimeMillis();
+		isCombat = false;
 	}
 
-	public static void updateWave() {
+	public static boolean updateWave() {
 		if (remainingInWave <= 0 && swimmingFishes.isEmpty()) {
 			// if the wave is done, move to next wave
 			wave++;
 			remainingInWave = STARTING_WAVE_FISH_COUNT + WAVE_FISH_INCREMENT * wave;
 			secPerChar = Math.max(0.1, STARTING_FISH_SPEED - ((wave - 1) * FISH_SPEED_INCREMENT));
+			return true;
 		}
+		return false;
 	}
 
 	public static boolean handleCharacterInput(int userID, char typed) {
@@ -279,7 +283,9 @@ public class GameCombat {
 
 					if (swimmingFishes.size() == 0) {
 						combatTime += System.currentTimeMillis() - combatStart;
+						isCombat = false;
 					}
+
 					
 					hasKilledFish = true;
 				}
@@ -361,6 +367,7 @@ public class GameCombat {
 				// if a fish can spawn
 				if (swimmingFishes.size() == 0) {
 					combatStart = System.currentTimeMillis();
+					isCombat = true;
 				}
 
 				swimmingFishes.add(new ActiveFish(selected, word, currentSpawnLane, spawnX));
@@ -376,7 +383,6 @@ public class GameCombat {
 	public static boolean updateCombat(int userID, int pondID) {
 		boolean isDead = false;
 
-		updateWave();
 		now = System.currentTimeMillis();
 		if (now - lastTick > (secPerChar * 1000)) { 
 			// if the fishes must now move based on speed
@@ -386,8 +392,12 @@ public class GameCombat {
 			lastTick = now;
 		}
 		sec = Math.max(1, (now - startTime - pausedTime) / 1000);
-;
-		wpm = (totalChars / 5.0) / (Math.max(1, combatTime / 1000) / 60.0);
+
+		if (isCombat) {
+			wpm = (totalChars / 5.0) / (Math.max(1, (now - combatStart + combatTime) / 1000) / 60.0);
+		} else {
+			wpm = (totalChars / 5.0) / (Math.max(1, combatTime / 1000) / 60.0);
+		}
 
 		return isDead;
 	} 

@@ -9,6 +9,7 @@ public class GameSound {
 
 	public static void main(String[] args) {
 		playAttackSFX();
+		new java.util.Scanner(System.in).nextLine();
 	}
 
 	static {

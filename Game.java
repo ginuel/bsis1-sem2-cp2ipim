@@ -145,7 +145,7 @@ public class Game {
 			} finally {
 				statusLabel.setText("Waiting for MariaDB...");
 				GameDatabase.waitForMariaDB();
-				statusLabel.setText("Loading sound effect...");
+				statusLabel.setText("Loading assets: attack sound effect...");
 				GameSound.playAttackSFX();
 				window.close();
 			}
@@ -739,6 +739,7 @@ public class Game {
 
 
 		new Thread(() -> {
+			GameSound.playAttackSFX();
 			boolean isDead = false;
 			while (!isDead) {
 				try {
@@ -746,6 +747,15 @@ public class Game {
 
 					if (GameCombat.isGamePaused()) {
 						continue;
+					}
+					
+					boolean isNextWave = GameCombat.updateWave();
+
+					if (isNextWave) {
+						GameCombat.togglePause(true);
+						MessageDialog.showMessageDialog(gui, "Combat", "Entering next wave...", MessageDialogButton.OK);
+						GameCombat.togglePause(false);
+						GameSound.playAttackSFX();
 					}
 
 					synchronized (GameCombat.getSwimmingFishes()) {
@@ -758,6 +768,7 @@ public class Game {
 				}
 			}
 
+			GameSound.playAttackSFX();
 			MessageDialog.showMessageDialog(gui, "Game Over!", GameCombat.getScores(), MessageDialogButton.OK);
 			window.close();
 		}).start();
