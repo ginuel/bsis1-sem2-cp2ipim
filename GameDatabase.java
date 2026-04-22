@@ -8,6 +8,12 @@ public class GameDatabase {
 	private static Properties props;
 	private static String feedback = "";
 
+
+	public static void main(String[] args) {
+		waitForMariaDB();
+		System.out.println("Connected to Database...");
+	}
+
 	static {
 		props = new Properties();
 
@@ -16,21 +22,21 @@ public class GameDatabase {
 		} catch (Exception error) {
 			feedback = "Error loading config.properties: " + error.getMessage();
 		}
-
-		getConnection();
 	}
 
 	public static void waitForMariaDB() {
 		// retry and wait 1 sec until connection is OK
 		while (connection == null) {
-			getConnection();
 			try {
+				getConnection();
 				Thread.sleep(1000); 
-			} catch (Exception error) {}
+			} catch (Exception error) {
+				error.printStackTrace();
+			}
 		}
 	}
 
-	public static Connection getConnection() {
+	public static Connection getConnection() throws Exception { 
 		try {
 			// make a connection only if it doesn't exist
 			if (connection == null || connection.isClosed()) {
@@ -43,7 +49,9 @@ public class GameDatabase {
 					props.getProperty("db.user"), 
 					props.getProperty("db.password"));
 			}
-		} catch (Exception error) {}
+		} catch (Exception error) {
+			throw error;
+		}
 		return connection;
 	}
 

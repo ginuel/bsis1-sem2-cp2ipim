@@ -5,8 +5,7 @@ import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
 import com.googlecode.lanterna.*;
 import com.googlecode.lanterna.gui2.*;
-import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
-import com.googlecode.lanterna.gui2.dialogs.MessageDialogButton;
+import com.googlecode.lanterna.gui2.dialogs.*;
 import org.mindrot.jbcrypt.BCrypt;
 
 import java.security.MessageDigest;
@@ -44,11 +43,6 @@ public class Game {
 						case BANNER:
 							showBanner();
 							state = State.AUTH;
-							// test
-							lastMenuState = State.MAP;
-							state = State.COMBAT;
-							userID = 1;
-							pondID = 1;
 							break;
 						case AUTH:
 							showAuthMenu();
@@ -104,7 +98,7 @@ public class Game {
 	}
 
 	private static void showBanner() {
-		BasicWindow window = new BasicWindow("Starting FishdaTyper");
+		BasicWindow window = new BasicWindow("FishdaTyper");
 		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
 		window.setComponent(panel);
@@ -128,7 +122,13 @@ public class Game {
 			         <°)))><        <°)))><        <°)))><
 			"""));
 
+
+		Label statusLabel = new Label("Starting FishdaTyper...");	
+
+
+		panel.addComponent(statusLabel);
 		panel.addComponent(progressBar);
+
 		
 
 		new Thread(() -> {
@@ -143,13 +143,15 @@ public class Game {
 			} catch (Exception error) {
 				error.printStackTrace();
 			} finally {
+				statusLabel.setText("Waiting for MariaDB...");
 				GameDatabase.waitForMariaDB();
-				GameDatabase.getConnection();
+				statusLabel.setText("Loading sound effect...");
 				GameSound.playAttackSFX();
 				window.close();
 			}
 			
 		}).start();
+
 		
 		gui.addWindowAndWait(window);
 	}
