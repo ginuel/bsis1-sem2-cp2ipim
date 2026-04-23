@@ -40,13 +40,16 @@
 │   ├── GameMap.class
 │   └── GameSound.class
 ├── config.properties
-├── fishdadb.sql
+├── down.sql
 ├── lib
 │   ├── jbcrypt-0.4.jar
+│   ├── jline-native-3.26.1.jar
+│   ├── jline-terminal-3.26.1.jar
 │   ├── lanterna.jar
 │   └── mariadb-java-client-3.5.7.jar
 ├── passwords.txt
 ├── seed-words.sql
+├── seed.sql
 ├── src
 │   ├── Game.java
 │   ├── GameAuth.java
@@ -58,168 +61,157 @@
 │   ├── GameSeeder.java
 │   ├── GameSound.java
 │   ├── config.properties
-│   ├── fishdadb.sql
-│   └── seed-words.sql
+│   ├── down.sql
+│   ├── seed-words.sql
+│   ├── seed.sql
+│   └── up.sql
 ├── tools
 │   ├── compile-text.sh
 │   ├── git.bash
 │   ├── index.php
 │   ├── install-adminer.sh
 │   ├── install-bcrypt.sh
+│   ├── install-jline3.sh
 │   ├── install-lanterna.sh
 │   ├── install-mariadb-jdbc.sh
 │   ├── make-credentials-seed-sql.sh
 │   ├── make-word-seed-sql.sh
+│   ├── reinstall-mariadb.sh
 │   ├── run-mariadb.sh
 │   ├── run.sh
 │   ├── src.txt
 │   ├── start-mariadb.sh
 │   ├── words.txt
 │   └── words_filtered.txt
+├── up.sql
 └── usernames.txt
 
-7 directories, 71 files
-GameLeaderboards.java:1:import java.sql.*;
-GameLeaderboards.java:2:import java.util.List;
-GameLeaderboards.java:3:import com.googlecode.lanterna.gui2.table.Table;
-GameLeaderboards.java:4:import com.googlecode.lanterna.gui2.table.TableModel;
-GameLeaderboards.java:6:public class GameLeaderboards {
-GameLeaderboards.java:7:	
-GameLeaderboards.java:8:	private static final List<String> SCORE_CATEGORIES = List.of("WPM", "CHARS", "GOLD", "KILLS", "WAVES", "TIME");
-GameLeaderboards.java:9:	
-GameLeaderboards.java:12:	// public static void main(String[] args) {
-GameLeaderboards.java:13:	// 	updateTable("WPM");
-GameLeaderboards.java:14:	// }
-GameLeaderboards.java:16:	public static void updateTable(Table<String> table, String category) {
-GameLeaderboards.java:17:		TableModel<String> model = new TableModel<>("RANK", "PLAYER", category);
-GameLeaderboards.java:18:		
-GameLeaderboards.java:19:		if (!SCORE_CATEGORIES.contains(category)) {
-GameLeaderboards.java:20:			category = "WPM";
-GameLeaderboards.java:21:		}
-GameLeaderboards.java:23:    String sql = String.format("""
-GameLeaderboards.java:24:			SELECT 
-GameLeaderboards.java:25:				RANK() OVER (ORDER BY %s DESC) AS Rank,
-GameLeaderboards.java:26:				UserName, 
-GameLeaderboards.java:27:				%s AS Score
-GameLeaderboards.java:28:			FROM (
-GameLeaderboards.java:29:				SELECT 
-GameLeaderboards.java:30:					UserName,
-GameLeaderboards.java:31:					ROUND((s.CharsTyped / 5.0) / (NULLIF(s.SurvivalTime, 0) / 60.0), 2) AS WPM,
-GameLeaderboards.java:32:					s.CharsTyped as CHARS,
-GameLeaderboards.java:33:					s.GoldEarned as GOLD,
-GameLeaderboards.java:34:					s.KillCount as KILLS,
-GameLeaderboards.java:35:					s.Waves as WAVES,
-GameLeaderboards.java:36:					s.SurvivalTime as TIME
-GameLeaderboards.java:37:				FROM ScorePerGame s
-GameLeaderboards.java:38:				JOIN UserCredentials uc ON s.UserID = uc.UserID
-GameLeaderboards.java:39:			) AS BaseData
-GameLeaderboards.java:40:			ORDER BY %s DESC
-GameLeaderboards.java:41:			LIMIT 100;
-GameLeaderboards.java:42:			""", category, category, category);
-GameLeaderboards.java:45:		Connection conn = GameDatabase.getConnection();
-GameLeaderboards.java:46:    try (Statement stmt = conn.createStatement()) {
-GameLeaderboards.java:47:			ResultSet rs = stmt.executeQuery(sql);
-GameLeaderboards.java:48:			while (rs.next()) {
-GameLeaderboards.java:49:				String rank = rs.getString("Rank");
-GameLeaderboards.java:50:				String name = rs.getString("UserName");
-GameLeaderboards.java:51:				String score = rs.getString("Score");
-GameLeaderboards.java:52:				// System.out.printf("%s, %s, %s\n", rank, name, score);
-GameLeaderboards.java:53:        model.addRow(rank, name, score);
-GameLeaderboards.java:54:			}
-GameLeaderboards.java:55:		} catch (Exception error) {
-GameLeaderboards.java:56:			error.printStackTrace();
-GameLeaderboards.java:57:		}
-GameLeaderboards.java:59:		table.setTableModel(model);
-GameLeaderboards.java:60:	}
-GameLeaderboards.java:62:	public static List<String> getCategories() {
-GameLeaderboards.java:63:		return SCORE_CATEGORIES;
-GameLeaderboards.java:64:	}
-GameLeaderboards.java:65:}
-GameBestiary.java:1:import java.sql.*;
-GameBestiary.java:2:import com.googlecode.lanterna.gui2.table.Table;
-GameBestiary.java:3:import com.googlecode.lanterna.gui2.table.TableModel;
-GameBestiary.java:5:public class GameBestiary {
-GameBestiary.java:6:	public static void updateTable(Table<String> table, int userID) {
-GameBestiary.java:7:		TableModel<String> model = new TableModel<>("POND", "FISH", "RARITY", "KILLS");
-GameBestiary.java:9:		String sql = """
-GameBestiary.java:10:			SELECT 
-GameBestiary.java:11:					PondType, 
-GameBestiary.java:12:					CONCAT(AsciiHead, ' ', FishName, ' ', AsciiTail) AS Fish,
-GameBestiary.java:13:					Rarity, 
-GameBestiary.java:14:					KillCount
-GameBestiary.java:15:			FROM DiscoveredFishes df
-GameBestiary.java:16:			JOIN Fishes f ON df.FishID = f.FishID
-GameBestiary.java:17:			JOIN PondTypes pt ON f.PondTypeID = pt.PondTypeID
-GameBestiary.java:18:			JOIN FishArts fa ON f.FishArtID = fa.FishArtID
-GameBestiary.java:19:			JOIN FishRarity fr ON f.RarityID = fr.RarityID
-GameBestiary.java:20:			WHERE df.UserID = ?
-GameBestiary.java:21:			ORDER BY PondType, FishName;
-GameBestiary.java:22:			""";
-GameBestiary.java:24:		Connection conn = GameDatabase.getConnection();
-GameBestiary.java:25:		try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-GameBestiary.java:26:			pstmt.setInt(1, userID);
-GameBestiary.java:27:			ResultSet rs = pstmt.executeQuery();
-GameBestiary.java:29:			while (rs.next()) {
-GameBestiary.java:30:				String pondType = rs.getString("PondType");
-GameBestiary.java:31:				String fish = rs.getString("Fish");
-GameBestiary.java:32:				String rarity = rs.getString("Rarity");
-GameBestiary.java:33:				String killCount = rs.getString("KillCount");
-GameBestiary.java:35:				model.addRow(pondType, fish, rarity, killCount);
-GameBestiary.java:36:			}
-GameBestiary.java:37:		} catch (Exception error) {
-GameBestiary.java:38:			error.printStackTrace();
-GameBestiary.java:39:		}
-GameBestiary.java:41:		table.setTableModel(model);
-GameBestiary.java:42:	}
-GameBestiary.java:43:}
-GameSound.java:1:import javax.sound.sampled.*;
-GameSound.java:2:import java.io.File;
-GameSound.java:3:import java.util.Properties;
-GameSound.java:4:import java.io.FileInputStream;
-GameSound.java:6:public class GameSound {
-GameSound.java:7:	private static Clip attackSfx = null;
-GameSound.java:8:	private static Properties props;
-GameSound.java:10:	public static void main(String[] args) {
-GameSound.java:11:		playAttackSFX();
-GameSound.java:12:		new java.util.Scanner(System.in).nextLine();
-GameSound.java:13:	}
-GameSound.java:15:	static {
-GameSound.java:16:		props = new Properties();
-GameSound.java:18:		try (FileInputStream in = new FileInputStream("config.properties")) {
-GameSound.java:19:			props.load(in);
-GameSound.java:20:		} catch (Exception error) {
-GameSound.java:21:			error.printStackTrace();
-GameSound.java:22:		}
-GameSound.java:23:	}
-GameSound.java:25:	public static void playAttackSFX() {
-GameSound.java:26:		try {
-GameSound.java:27:			if (attackSfx == null) {
-GameSound.java:28:				File soundFile = new File(props.getProperty("game.attack-sfx-path"));
-GameSound.java:29:				AudioInputStream audioIn = AudioSystem.getAudioInputStream(soundFile);
-GameSound.java:30:				attackSfx = AudioSystem.getClip();
-GameSound.java:31:				attackSfx.open(audioIn);
-GameSound.java:32:			}
-GameSound.java:33:			attackSfx.stop();
-GameSound.java:34:			attackSfx.setMicrosecondPosition(0);
-GameSound.java:35:			attackSfx.start();
-GameSound.java:36:		} catch (Exception error) {
-GameSound.java:37:			error.printStackTrace();
-GameSound.java:38:		}
-GameSound.java:39:	}
-GameSound.java:40:}
-config.properties:1:db.host=localhost
-config.properties:2:db.port=3306
-config.properties:3:db.name=fishdadb
-config.properties:4:db.user=root
-config.properties:5:db.password=root
-config.properties:6:game.default-username=admin
-config.properties:7:game.default-password=12345678
-config.properties:8:db.shell=bash -c
-config.properties:9:db.mysql-path=mariadb
-config.properties:10:db.mysql-dump-path=mariadb-dump
-config.properties:11:db.backup-path=backup/backup.sql
-config.properties:13:# https://pixabay.com/sound-effects/nature-splashing-water-443136/
-config.properties:14:game.attack-sfx-path=assets/attack.wav
+7 directories, 79 files
+up.sql:1:CREATE DATABASE fishdadb;
+up.sql:2:USE fishdadb;
+up.sql:4:-- =====================================================
+up.sql:5:-- 1. REFERENCE TABLES (create first due to FK constraints)
+up.sql:6:-- =====================================================
+up.sql:8:--
+up.sql:10:-- Fish Rarity Levels
+up.sql:11:CREATE TABLE FishRarity (
+up.sql:12:	RarityID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:13:	Rarity VARCHAR(15) UNIQUE NOT NULL,
+up.sql:14:	SpawnRate FLOAT NOT NULL,
+up.sql:15:	CoinsReward INT DEFAULT 1 NOT NULL CHECK (CoinsReward >= 1) -- It must reward atleast 1 gold
+up.sql:16:);
+up.sql:18:-- Fish ASCII Art Components
+up.sql:19:CREATE TABLE FishArts (
+up.sql:20:	FishArtID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:21:	AsciiHead VARCHAR(15) NOT NULL,
+up.sql:22:	AsciiTail VARCHAR(15) NOT NULL
+up.sql:23:);
+up.sql:28:-- Pond Types
+up.sql:29:CREATE TABLE PondTypes (
+up.sql:30:	PondTypeID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:31:	PondType VARCHAR(20) UNIQUE NOT NULL
+up.sql:32:);
+up.sql:35:-- =====================================================
+up.sql:36:-- 1.5. ISOLATED TABLE
+up.sql:37:-- =====================================================
+up.sql:39:-- Word Bank for Typing Game
+up.sql:40:CREATE TABLE Words (
+up.sql:41:	WordID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:42:	WordText VARCHAR(30) UNIQUE NOT NULL
+up.sql:43:		CHECK (LENGTH(WordText) >= 1) -- Minimum word length
+up.sql:44:);
+up.sql:46:-- =====================================================
+up.sql:47:-- 2. CORE TABLES
+up.sql:48:-- =====================================================
+up.sql:51:-- Users
+up.sql:52:CREATE TABLE Users (
+up.sql:53:	UserID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:54:	Gold INT DEFAULT 0 NOT NULL,
+up.sql:55:	LastMapRow INT DEFAULT -1 NOT NULL,
+up.sql:56:	LastMapCol INT DEFAULT -1 NOT NULL,
+up.sql:57:	CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+up.sql:58:);
+up.sql:60:-- UserCredentials
+up.sql:61:CREATE TABLE UserCredentials (
+up.sql:62:	CredentialID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:63:	UserID INT UNIQUE NOT NULL,
+up.sql:64:	UserName VARCHAR(60) UNIQUE NOT NULL,
+up.sql:65:	PasswordHash VARCHAR(255) NOT NULL,
+up.sql:66:	FOREIGN KEY (UserID) REFERENCES Users(UserID)
+up.sql:67:		ON DELETE CASCADE
+up.sql:68:);
+up.sql:70:-- Ponds
+up.sql:71:CREATE TABLE Ponds (
+up.sql:72:	PondID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:73:	PondName VARCHAR(100) UNIQUE NOT NULL,
+up.sql:74:	PondTypeID INT NOT NULL,
+up.sql:75:	PondCost INT DEFAULT 0 NOT NULL,
+up.sql:76:	PondSymbol CHAR(1) DEFAULT '?' NOT NULL,
+up.sql:77:	FOREIGN KEY (PondTypeID) REFERENCES PondTypes(PondTypeID)
+up.sql:78:		ON DELETE RESTRICT
+up.sql:79:);
+up.sql:83:-- Fish Species
+up.sql:84:CREATE TABLE Fishes (
+up.sql:85:	FishID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:86:	FishName VARCHAR(100) UNIQUE NOT NULL,
+up.sql:87:	FishArtID INT NOT NULL,
+up.sql:88:	RarityID INT NOT NULL,
+up.sql:89:	PondTypeID INT NOT NULL,
+up.sql:90:	FishColorHex CHAR(7) DEFAULT '#FFFFFF' NOT NULL
+up.sql:91:		CHECK (FishColorHex REGEXP '^#[a-fA-F0-9]{6}$'), -- It must only contain hex color
+up.sql:92:	FOREIGN KEY (PondTypeID) REFERENCES PondTypes(PondTypeID)
+up.sql:93:		ON DELETE RESTRICT,
+up.sql:94:	FOREIGN KEY (FishArtID) REFERENCES FishArts(FishArtID)
+up.sql:95:		ON DELETE RESTRICT,
+up.sql:96:	FOREIGN KEY (RarityID) REFERENCES FishRarity(RarityID)
+up.sql:97:		ON DELETE RESTRICT
+up.sql:98:);
+up.sql:101:-- =====================================================
+up.sql:102:-- 3. JUNCTION & ACTIVITY TABLES
+up.sql:103:-- =====================================================
+up.sql:105:-- User-Pond Ownership (which ponds user has unlocked)
+up.sql:106:CREATE TABLE UserPonds (
+up.sql:107:	UserPondID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:108:	UserID INT NOT NULL,
+up.sql:109:	PondID INT NOT NULL,
+up.sql:110:	PurchasedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+up.sql:111:	UNIQUE (UserID, PondID),
+up.sql:112:	FOREIGN KEY (UserID) REFERENCES Users(UserID)
+up.sql:113:		ON DELETE CASCADE,
+up.sql:114:	FOREIGN KEY (PondID) REFERENCES Ponds(PondID)
+up.sql:115:		ON DELETE CASCADE
+up.sql:116:);
+up.sql:118:-- User's Discovered Fish Collection
+up.sql:119:CREATE TABLE DiscoveredFishes (
+up.sql:120:	DiscoveredFishID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:121:	UserID INT NOT NULL,
+up.sql:122:	FishID INT NOT NULL,
+up.sql:123:	KillCount INT DEFAULT 1 NOT NULL
+up.sql:124:		CHECK (KillCount >=	1),
+up.sql:125:	DiscoveredAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+up.sql:126:	UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+up.sql:127:	UNIQUE (UserID, FishID),
+up.sql:128:	FOREIGN KEY (UserID) REFERENCES Users(UserID) 
+up.sql:129:		ON DELETE CASCADE,
+up.sql:130:	FOREIGN KEY (FishID) REFERENCES Fishes(FishID) 
+up.sql:131:		ON DELETE CASCADE
+up.sql:132:);
+up.sql:134:-- Game Session Scores
+up.sql:135:CREATE TABLE ScorePerGame (
+up.sql:136:	ScoreID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+up.sql:137:	UserID INT NOT NULL,
+up.sql:138:	PondID INT NOT NULL,
+up.sql:139:	CharsTyped INT DEFAULT 0 NOT NULL,
+up.sql:140:	SurvivalTime INT DEFAULT 0 NOT NULL,
+up.sql:141:	KillCount INT DEFAULT 0 NOT NULL,
+up.sql:142:	GoldEarned INT DEFAULT 0 NOT NULL,
+up.sql:143:	Waves INT DEFAULT 0 NOT NULL,
+up.sql:144:	PlayedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+up.sql:145:	FOREIGN KEY (UserID) REFERENCES Users(UserID) 
+up.sql:146:		ON DELETE CASCADE,
+up.sql:147:	FOREIGN KEY (PondID) REFERENCES Ponds(PondID) 
+up.sql:148:		ON DELETE CASCADE
+up.sql:149:);
 GameDatabase.java:1:import java.sql.Connection;
 GameDatabase.java:2:import java.sql.DriverManager;
 GameDatabase.java:3:import java.util.Properties;
@@ -240,97 +232,104 @@ GameDatabase.java:22:		} catch (Exception error) {
 GameDatabase.java:23:			feedback = "Error loading config.properties: " + error.getMessage();
 GameDatabase.java:24:		}
 GameDatabase.java:25:	}
-GameDatabase.java:27:	public static void waitForMariaDB() {
-GameDatabase.java:28:		// retry and wait 1 sec until connection is OK
-GameDatabase.java:29:		while (connection == null) {
-GameDatabase.java:30:			try {
-GameDatabase.java:31:				getConnection();
-GameDatabase.java:32:				Thread.sleep(1000); 
-GameDatabase.java:33:			} catch (Exception error) {}
-GameDatabase.java:34:		}
-GameDatabase.java:35:	}
-GameDatabase.java:37:	public static Connection getConnection() { 
-GameDatabase.java:38:		try {
-GameDatabase.java:39:			// make a connection only if it doesn't exist
-GameDatabase.java:40:			if (connection == null || connection.isClosed()) {
-GameDatabase.java:41:				String url = String.format("jdbc:mariadb://%s:%s/%s",
-GameDatabase.java:42:					props.getProperty("db.host"),
-GameDatabase.java:43:					props.getProperty("db.port"),
-GameDatabase.java:44:					props.getProperty("db.name"));
-GameDatabase.java:46:				connection = DriverManager.getConnection(url, 
-GameDatabase.java:47:					props.getProperty("db.user"), 
-GameDatabase.java:48:					props.getProperty("db.password"));
-GameDatabase.java:49:			}
-GameDatabase.java:50:		} catch (Exception error) {}
-GameDatabase.java:51:		return connection;
-GameDatabase.java:52:	}
-GameDatabase.java:54:	public static boolean save() {
-GameDatabase.java:55:		try {
-GameDatabase.java:56:			String backupFilePath = props.getProperty("db.backup-path");
-GameDatabase.java:57:			String dbCommand = String.format("%s -h%s -P%s -u%s -p%s %s",
-GameDatabase.java:58:					props.getProperty("db.mysql-dump-path"),
-GameDatabase.java:59:					props.getProperty("db.host"),
-GameDatabase.java:60:					props.getProperty("db.port"),
-GameDatabase.java:61:					props.getProperty("db.user"),
-GameDatabase.java:62:					props.getProperty("db.password"),
-GameDatabase.java:63:					props.getProperty("db.name"));
-GameDatabase.java:65:			// Build command list from shell property + the dbCommand
-GameDatabase.java:66:			java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(props.getProperty("db.shell").split(" ")));
-GameDatabase.java:67:			command.add(dbCommand);
-GameDatabase.java:69:			ProcessBuilder pb = new ProcessBuilder(command);
-GameDatabase.java:70:			pb.redirectOutput(new java.io.File(backupFilePath));
-GameDatabase.java:71:			pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-GameDatabase.java:73:			Process process = pb.start();
-GameDatabase.java:74:			boolean isSuccessful = (process.waitFor() == 0);
-GameDatabase.java:75:			if (isSuccessful) {
-GameDatabase.java:76:				feedback = "Success: Database saved to " + backupFilePath;
-GameDatabase.java:77:			} else {
-GameDatabase.java:78:				feedback = "Error: mysqldump exited with an error.";
-GameDatabase.java:79:			}
-GameDatabase.java:81:			return isSuccessful;
-GameDatabase.java:82:		} catch (Exception error) {
-GameDatabase.java:83:			error.printStackTrace();
-GameDatabase.java:84:		}
-GameDatabase.java:86:		return false;
-GameDatabase.java:87:	}
-GameDatabase.java:89:	public static boolean load() {
-GameDatabase.java:90:		try {
-GameDatabase.java:91:			String backupFilePath = props.getProperty("db.backup-path");
-GameDatabase.java:92:			java.io.File backupFile = new java.io.File(backupFilePath);
-GameDatabase.java:94:			if (!backupFile.exists()) {
-GameDatabase.java:95:				feedback = "Error: Backup file not found at " + backupFilePath;
-GameDatabase.java:96:				return false;
-GameDatabase.java:97:			}
-GameDatabase.java:99:			String dbCommand = String.format("%s -h%s -P%s -u%s -p%s %s",
-GameDatabase.java:100:					props.getProperty("db.mysql-path"),
-GameDatabase.java:101:					props.getProperty("db.host"),
-GameDatabase.java:102:					props.getProperty("db.port"),
-GameDatabase.java:103:					props.getProperty("db.user"),
-GameDatabase.java:104:					props.getProperty("db.password"),
-GameDatabase.java:105:					props.getProperty("db.name"));
-GameDatabase.java:107:			// Build command list from shell property + the dbCommand
-GameDatabase.java:108:			java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(props.getProperty("db.shell").split(" ")));
-GameDatabase.java:109:			command.add(dbCommand);
-GameDatabase.java:111:			ProcessBuilder pb = new ProcessBuilder(command);
-GameDatabase.java:112:			pb.redirectInput(backupFile);
-GameDatabase.java:113:			pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-GameDatabase.java:115:			Process process = pb.start();
-GameDatabase.java:116:			boolean isSuccessful = (process.waitFor() == 0);
-GameDatabase.java:117:			if (isSuccessful) {
-GameDatabase.java:118:				feedback = "Success: Database loaded from " + backupFilePath;
-GameDatabase.java:119:			} else {
-GameDatabase.java:120:				feedback = "Error: mysql import exited with an error.";
-GameDatabase.java:121:			}
-GameDatabase.java:123:			return isSuccessful;
-GameDatabase.java:124:		} catch (Exception e) {
-GameDatabase.java:125:			e.printStackTrace();
-GameDatabase.java:126:		}
-GameDatabase.java:128:		return false;
-GameDatabase.java:129:	}
-GameDatabase.java:131:	public static String getFeedback() {
-GameDatabase.java:132:		return feedback;
-GameDatabase.java:133:	}
-GameDatabase.java:135:}
+GameDatabase.java:27:	public static void close() {
+GameDatabase.java:28:		try {
+GameDatabase.java:29:			connection.close();
+GameDatabase.java:30:		} catch (Exception error) {
+GameDatabase.java:31:			error.printStackTrace();
+GameDatabase.java:32:		}
+GameDatabase.java:33:	}
+GameDatabase.java:35:	public static void waitForMariaDB() {
+GameDatabase.java:36:		// retry and wait 1 sec until connection is OK
+GameDatabase.java:37:		while (connection == null) {
+GameDatabase.java:38:			try {
+GameDatabase.java:39:				getConnection();
+GameDatabase.java:40:				Thread.sleep(1000); 
+GameDatabase.java:41:			} catch (Exception error) {}
+GameDatabase.java:42:		}
+GameDatabase.java:43:	}
+GameDatabase.java:45:	public static Connection getConnection() { 
+GameDatabase.java:46:		try {
+GameDatabase.java:47:			// make a connection only if it doesn't exist
+GameDatabase.java:48:			if (connection == null || connection.isClosed()) {
+GameDatabase.java:49:				String url = String.format("jdbc:mariadb://%s:%s/%s",
+GameDatabase.java:50:					props.getProperty("db.host"),
+GameDatabase.java:51:					props.getProperty("db.port"),
+GameDatabase.java:52:					props.getProperty("db.name"));
+GameDatabase.java:54:				connection = DriverManager.getConnection(url, 
+GameDatabase.java:55:					props.getProperty("db.user"), 
+GameDatabase.java:56:					props.getProperty("db.password"));
+GameDatabase.java:57:			}
+GameDatabase.java:58:		} catch (Exception error) {}
+GameDatabase.java:59:		return connection;
+GameDatabase.java:60:	}
+GameDatabase.java:62:	public static boolean save() {
+GameDatabase.java:63:		try {
+GameDatabase.java:64:			String backupFilePath = props.getProperty("db.backup-path");
+GameDatabase.java:65:			String dbCommand = String.format("%s -h%s -P%s -u%s -p%s %s",
+GameDatabase.java:66:					props.getProperty("db.mysql-dump-path"),
+GameDatabase.java:67:					props.getProperty("db.host"),
+GameDatabase.java:68:					props.getProperty("db.port"),
+GameDatabase.java:69:					props.getProperty("db.user"),
+GameDatabase.java:70:					props.getProperty("db.password"),
+GameDatabase.java:71:					props.getProperty("db.name"));
+GameDatabase.java:73:			// Build command list from shell property + the dbCommand
+GameDatabase.java:74:			java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(props.getProperty("db.shell").split(" ")));
+GameDatabase.java:75:			command.add(dbCommand);
+GameDatabase.java:77:			ProcessBuilder pb = new ProcessBuilder(command);
+GameDatabase.java:78:			pb.redirectOutput(new java.io.File(backupFilePath));
+GameDatabase.java:79:			pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+GameDatabase.java:81:			Process process = pb.start();
+GameDatabase.java:82:			boolean isSuccessful = (process.waitFor() == 0);
+GameDatabase.java:83:			if (isSuccessful) {
+GameDatabase.java:84:				feedback = "Success: Database saved to " + backupFilePath;
+GameDatabase.java:85:			} else {
+GameDatabase.java:86:				feedback = "Error: mysqldump exited with an error.";
+GameDatabase.java:87:			}
+GameDatabase.java:89:			return isSuccessful;
+GameDatabase.java:90:		} catch (Exception error) {
+GameDatabase.java:91:			error.printStackTrace();
+GameDatabase.java:92:		}
+GameDatabase.java:94:		return false;
+GameDatabase.java:95:	}
+GameDatabase.java:97:	public static boolean load() {
+GameDatabase.java:98:		try {
+GameDatabase.java:99:			String backupFilePath = props.getProperty("db.backup-path");
+GameDatabase.java:100:			java.io.File backupFile = new java.io.File(backupFilePath);
+GameDatabase.java:102:			if (!backupFile.exists()) {
+GameDatabase.java:103:				feedback = "Error: Backup file not found at " + backupFilePath;
+GameDatabase.java:104:				return false;
+GameDatabase.java:105:			}
+GameDatabase.java:107:			String dbCommand = String.format("%s -h%s -P%s -u%s -p%s %s",
+GameDatabase.java:108:					props.getProperty("db.mysql-path"),
+GameDatabase.java:109:					props.getProperty("db.host"),
+GameDatabase.java:110:					props.getProperty("db.port"),
+GameDatabase.java:111:					props.getProperty("db.user"),
+GameDatabase.java:112:					props.getProperty("db.password"),
+GameDatabase.java:113:					props.getProperty("db.name"));
+GameDatabase.java:115:			// Build command list from shell property + the dbCommand
+GameDatabase.java:116:			java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(props.getProperty("db.shell").split(" ")));
+GameDatabase.java:117:			command.add(dbCommand);
+GameDatabase.java:119:			ProcessBuilder pb = new ProcessBuilder(command);
+GameDatabase.java:120:			pb.redirectInput(backupFile);
+GameDatabase.java:121:			pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+GameDatabase.java:123:			Process process = pb.start();
+GameDatabase.java:124:			boolean isSuccessful = (process.waitFor() == 0);
+GameDatabase.java:125:			if (isSuccessful) {
+GameDatabase.java:126:				feedback = "Success: Database loaded from " + backupFilePath;
+GameDatabase.java:127:			} else {
+GameDatabase.java:128:				feedback = "Error: mysql import exited with an error.";
+GameDatabase.java:129:			}
+GameDatabase.java:131:			return isSuccessful;
+GameDatabase.java:132:		} catch (Exception e) {
+GameDatabase.java:133:			e.printStackTrace();
+GameDatabase.java:134:		}
+GameDatabase.java:136:		return false;
+GameDatabase.java:137:	}
+GameDatabase.java:139:	public static String getFeedback() {
+GameDatabase.java:140:		return feedback;
+GameDatabase.java:141:	}
+GameDatabase.java:143:}
 GameMap.java:1:import com.googlecode.lanterna.TextColor;
 GameMap.java:2:import com.googlecode.lanterna.graphics.TextGraphics;
 GameMap.java:3:import com.googlecode.lanterna.input.KeyStroke;
@@ -627,6 +626,1005 @@ GameMap.java:322:	public static String getFeedback() {
 GameMap.java:323:		return feedback;
 GameMap.java:324:	}
 GameMap.java:325:}
+seed.sql:1:USE fishdadb;
+seed.sql:2:-- Seed
+seed.sql:4:INSERT INTO FishRarity (Rarity, SpawnRate, CoinsReward) VALUES 
+seed.sql:5:('Common', 50, 1),
+seed.sql:6:('Uncommon', 15, 2),
+seed.sql:7:('Rare', 5, 5),
+seed.sql:8:('Epic', 1.5,	9),
+seed.sql:9:('Legendary', 0.3, 15);
+seed.sql:11:INSERT INTO FishArts (AsciiHead, AsciiTail) VALUES
+seed.sql:12:('<(', ')><|'),
+seed.sql:13:('O>', '><'),
+seed.sql:14:('{~', '~}'),
+seed.sql:15:('C>', '>>'),
+seed.sql:16:('<*', '*>');
+seed.sql:18:INSERT INTO PondTypes (PondType) VALUES
+seed.sql:19:('Freshwater'),
+seed.sql:20:('Saltwater'),
+seed.sql:21:('Brackish');
+seed.sql:23:INSERT INTO Ponds (PondName, PondTypeID, PondCost, PondSymbol) VALUES
+seed.sql:24:('Pampanga River', 1, 0, '1'),   -- Freshwater
+seed.sql:25:('Manila Bay', 2, 100, '2'),      -- Saltwater
+seed.sql:26:('Dagupan Estuary', 3, 250, '3'); -- Brackish
+seed.sql:29:-- Freshwater Fishes (PondTypeID 1)
+seed.sql:30:INSERT INTO Fishes (FishName, FishArtID, RarityID, PondTypeID, FishColorHex) VALUES
+seed.sql:31:('Tilapia', 1, 1, 1, '#C0C0C0'), ('Catfish', 2, 1, 1, '#4B3621'), 
+seed.sql:32:('Snakehead', 3, 2, 1, '#2E8B57'), ('Carp', 4, 2, 1, '#DAA520'),
+seed.sql:33:('Gourami', 5, 1, 1, '#FF6347'), ('Neon Tetra', 1, 3, 1, '#0000FF'),
+seed.sql:34:('Guppy', 2, 1, 1, '#FFD700'), ('Angelfish', 3, 2, 1, '#FFFFFF'),
+seed.sql:35:('Betta', 4, 3, 1, '#FF0000'), ('Arowana', 5, 5, 1, '#FFD700'),
+seed.sql:36:('Loach', 1, 1, 1, '#8B4513'), ('Barb', 2, 2, 1, '#FFA500'),
+seed.sql:37:('Oscar', 3, 4, 1, '#FF4500'), ('Discus', 4, 4, 1, '#00CED1'),
+seed.sql:38:('Killifish', 5, 1, 1, '#7FFF00'), ('Cichlid', 1, 2, 1, '#BA55D3'),
+seed.sql:39:('Pike', 2, 3, 1, '#556B2F'), ('Perch', 3, 1, 1, '#F4A460'),
+seed.sql:40:('Eel', 4, 3, 1, '#000000'), ('Ghost Shrimp', 5, 5, 1, '#F0F8FF');
+seed.sql:42:-- Saltwater Fishes (PondTypeID 2)
+seed.sql:43:INSERT INTO Fishes (FishName, FishArtID, RarityID, PondTypeID, FishColorHex) VALUES
+seed.sql:44:('Tuna', 1, 1, 2, '#4682B4'), ('Mackerel', 2, 1, 2, '#708090'),
+seed.sql:45:('Grouper', 3, 2, 2, '#8FBC8F'), ('Snapper', 4, 2, 2, '#CD5C5C'),
+seed.sql:46:('Mahi-Mahi', 5, 3, 2, '#ADFF2F'), ('Clownfish', 1, 3, 2, '#FF8C00'),
+seed.sql:47:('Blue Tang', 2, 2, 2, '#0000CD'), ('Lionfish', 3, 4, 2, '#A52A2A'),
+seed.sql:48:('Moorish Idol', 4, 4, 2, '#FFFF00'), ('Barracuda', 5, 3, 2, '#A9A9A9'),
+seed.sql:49:('Stingray', 1, 4, 2, '#D2B48C'), ('Swordfish', 2, 5, 2, '#778899'),
+seed.sql:50:('Great White', 3, 5, 2, '#D3D3D3'), ('Hammerhead', 4, 5, 2, '#C0C0C0'),
+seed.sql:51:('Seahorse', 5, 3, 2, '#EE82EE'), ('Butterflyfish', 1, 2, 2, '#FFFACD'),
+seed.sql:52:('Wrasse', 2, 1, 2, '#48D1CC'), ('Parrotfish', 3, 2, 2, '#32CD32'),
+seed.sql:53:('Triggerfish', 4, 3, 2, '#FF00FF'), ('Boxfish', 5, 4, 2, '#F0E68C');
+seed.sql:55:-- Brackish Fishes (PondTypeID 3)
+seed.sql:56:INSERT INTO Fishes (FishName, FishArtID, RarityID, PondTypeID, FishColorHex) VALUES
+seed.sql:57:('Milkfish', 1, 1, 3, '#F5F5F5'), ('Barramundi', 2, 2, 3, '#BDB76B'),
+seed.sql:58:('Tarpon', 3, 3, 3, '#E6E6FA'), ('Mullet', 4, 1, 3, '#696969'),
+seed.sql:59:('Archerfish', 5, 3, 3, '#9ACD32'), ('Mudskipper', 1, 1, 3, '#556B2F'),
+seed.sql:60:('Scat', 2, 2, 3, '#DAA520'), ('Pufferfish', 3, 4, 3, '#FFE4B5'),
+seed.sql:61:('Monos', 4, 2, 3, '#C0C0C0'), ('Batfish', 5, 4, 3, '#2F4F4F'),
+seed.sql:62:('Spotted Scat', 1, 2, 3, '#808000'), ('Glassfish', 2, 1, 3, '#E0FFFF'),
+seed.sql:63:('Bumblebee Goby', 3, 3, 3, '#000000'), ('Pistol Shrimp', 4, 5, 3, '#FF7F50'),
+seed.sql:64:('Red Mangrove Crab', 5, 4, 3, '#B22222'), ('Needlefish', 1, 3, 3, '#AFEEEE'),
+seed.sql:65:('Jack', 2, 1, 3, '#708090'), ('Threadfin', 3, 2, 3, '#F5DEB3'),
+seed.sql:66:('Ladyfish', 4, 2, 3, '#F0FFF0'), ('Stonefish', 5, 5, 3, '#8B4513');
+GameLeaderboards.java:1:import java.sql.*;
+GameLeaderboards.java:2:import java.util.List;
+GameLeaderboards.java:3:import com.googlecode.lanterna.gui2.table.Table;
+GameLeaderboards.java:4:import com.googlecode.lanterna.gui2.table.TableModel;
+GameLeaderboards.java:6:public class GameLeaderboards {
+GameLeaderboards.java:7:	
+GameLeaderboards.java:8:	private static final List<String> SCORE_CATEGORIES = List.of("WPM", "CHARS", "GOLD", "KILLS", "WAVES", "TIME");
+GameLeaderboards.java:9:	
+GameLeaderboards.java:12:	// public static void main(String[] args) {
+GameLeaderboards.java:13:	// 	updateTable("WPM");
+GameLeaderboards.java:14:	// }
+GameLeaderboards.java:16:	public static void updateTable(Table<String> table, String category) {
+GameLeaderboards.java:17:		TableModel<String> model = new TableModel<>("RANK", "PLAYER", category);
+GameLeaderboards.java:18:		
+GameLeaderboards.java:19:		if (!SCORE_CATEGORIES.contains(category)) {
+GameLeaderboards.java:20:			category = "WPM";
+GameLeaderboards.java:21:		}
+GameLeaderboards.java:23:    String sql = String.format("""
+GameLeaderboards.java:24:			SELECT 
+GameLeaderboards.java:25:				RANK() OVER (ORDER BY %s DESC) AS Rank,
+GameLeaderboards.java:26:				UserName, 
+GameLeaderboards.java:27:				%s AS Score
+GameLeaderboards.java:28:			FROM (
+GameLeaderboards.java:29:				SELECT 
+GameLeaderboards.java:30:					UserName,
+GameLeaderboards.java:31:					ROUND((s.CharsTyped / 5.0) / (NULLIF(s.SurvivalTime, 0) / 60.0), 2) AS WPM,
+GameLeaderboards.java:32:					s.CharsTyped as CHARS,
+GameLeaderboards.java:33:					s.GoldEarned as GOLD,
+GameLeaderboards.java:34:					s.KillCount as KILLS,
+GameLeaderboards.java:35:					s.Waves as WAVES,
+GameLeaderboards.java:36:					s.SurvivalTime as TIME
+GameLeaderboards.java:37:				FROM ScorePerGame s
+GameLeaderboards.java:38:				JOIN UserCredentials uc ON s.UserID = uc.UserID
+GameLeaderboards.java:39:			) AS BaseData
+GameLeaderboards.java:40:			ORDER BY %s DESC
+GameLeaderboards.java:41:			LIMIT 100;
+GameLeaderboards.java:42:			""", category, category, category);
+GameLeaderboards.java:45:		Connection conn = GameDatabase.getConnection();
+GameLeaderboards.java:46:    try (Statement stmt = conn.createStatement()) {
+GameLeaderboards.java:47:			ResultSet rs = stmt.executeQuery(sql);
+GameLeaderboards.java:48:			while (rs.next()) {
+GameLeaderboards.java:49:				String rank = rs.getString("Rank");
+GameLeaderboards.java:50:				String name = rs.getString("UserName");
+GameLeaderboards.java:51:				String score = rs.getString("Score");
+GameLeaderboards.java:52:				// System.out.printf("%s, %s, %s\n", rank, name, score);
+GameLeaderboards.java:53:        model.addRow(rank, name, score);
+GameLeaderboards.java:54:			}
+GameLeaderboards.java:55:		} catch (Exception error) {
+GameLeaderboards.java:56:			error.printStackTrace();
+GameLeaderboards.java:57:		}
+GameLeaderboards.java:59:		table.setTableModel(model);
+GameLeaderboards.java:60:	}
+GameLeaderboards.java:62:	public static List<String> getCategories() {
+GameLeaderboards.java:63:		return SCORE_CATEGORIES;
+GameLeaderboards.java:64:	}
+GameLeaderboards.java:65:}
+config.properties:1:db.host=localhost
+config.properties:2:db.port=3306
+config.properties:3:db.name=fishdadb
+config.properties:4:db.user=root
+config.properties:5:db.password=
+config.properties:6:game.default-username=admin
+config.properties:7:game.default-password=12345678
+config.properties:8:db.shell=bash -c
+config.properties:9:db.mysql-path=mariadb
+config.properties:10:db.mysql-dump-path=mariadb-dump
+config.properties:11:db.backup-path=backup/backup.sql
+config.properties:13:# https://pixabay.com/sound-effects/nature-splashing-water-443136/
+config.properties:14:game.attack-sfx-path=assets/attack.wav
+GameSeeder.java:1:import java.io.FileInputStream;
+GameSeeder.java:2:import java.io.BufferedReader;
+GameSeeder.java:3:import java.io.FileReader;
+GameSeeder.java:4:import java.io.IOException;
+GameSeeder.java:5:import java.net.Socket;
+GameSeeder.java:6:import java.sql.*;
+GameSeeder.java:7:import java.util.Properties;
+GameSeeder.java:8:import java.util.Random;
+GameSeeder.java:10:public class GameSeeder {
+GameSeeder.java:11:    private static final Random random = new Random();
+GameSeeder.java:12:    private static final Properties config = new Properties();
+GameSeeder.java:13:    private static Process dbProcess = null; // Track the process to kill it later
+GameSeeder.java:15:    public static void main(String[] args) {
+GameSeeder.java:16:        System.out.println("=== Starting Game Database Seeder ===");
+GameSeeder.java:17:        
+GameSeeder.java:18:        loadConfig();
+GameSeeder.java:20:        // 3. Seed Data
+GameSeeder.java:21:        seedAdmin();
+GameSeeder.java:22:        seedAdminDiscoveries(); 
+GameSeeder.java:23:        seedUsersAndScores();   
+GameSeeder.java:24:        
+GameSeeder.java:25:        System.out.println("=== Seeding Complete ===");
+GameSeeder.java:26:        
+GameSeeder.java:27:        // Optional: Shutdown DB if we were the ones who started it
+GameSeeder.java:28:        if (dbProcess != null) {
+GameSeeder.java:29:            System.out.println("Closing spawned database process...");
+GameSeeder.java:30:            dbProcess.destroy();
+GameSeeder.java:31:        }
+GameSeeder.java:32:    }
+GameSeeder.java:34:    private static void loadConfig() {
+GameSeeder.java:35:        try (FileInputStream fis = new FileInputStream("config.properties")) {
+GameSeeder.java:36:            config.load(fis);
+GameSeeder.java:37:        } catch (Exception e) {
+GameSeeder.java:38:            System.err.println("Fatal: Could not load config.properties");
+GameSeeder.java:39:            System.exit(1);
+GameSeeder.java:40:        }
+GameSeeder.java:41:    }
+GameSeeder.java:45:    private static void seedAdmin() {
+GameSeeder.java:46:        String username = config.getProperty("game.default-username");
+GameSeeder.java:47:        String password = config.getProperty("game.default-password", "").trim();
+GameSeeder.java:49:        if (username != null && username.matches("^[A-Za-z][A-Za-z0-9]{2,}$") && password.length() >= 8) {
+GameSeeder.java:50:            try {
+GameSeeder.java:51:                GameAuth.register(username, password, password);
+GameSeeder.java:52:                System.out.println("Admin account verified/registered.");
+GameSeeder.java:53:            } catch (Exception e) {
+GameSeeder.java:54:                System.out.println("Admin account already exists or registration failed.");
+GameSeeder.java:55:            }
+GameSeeder.java:56:        }
+GameSeeder.java:57:    }
+GameSeeder.java:59:    private static void seedAdminDiscoveries() {
+GameSeeder.java:60:        String sql = "INSERT IGNORE INTO DiscoveredFishes (UserID, FishID, KillCount) " +
+GameSeeder.java:61:                     "SELECT 1, FishID, 1 FROM Fishes";
+GameSeeder.java:62:        
+GameSeeder.java:63:        try (Connection conn = GameDatabase.getConnection();
+GameSeeder.java:64:             PreparedStatement ps = conn.prepareStatement(sql)) {
+GameSeeder.java:65:            int count = ps.executeUpdate();
+GameSeeder.java:66:            System.out.println("Seeded " + count + " fish discoveries for Admin.");
+GameSeeder.java:67:        } catch (Exception e) {
+GameSeeder.java:68:            System.out.println("Error seeding discoveries: " + e.getMessage());
+GameSeeder.java:69:        }
+GameSeeder.java:70:    }
+GameSeeder.java:72:    private static void seedUsersAndScores() {
+GameSeeder.java:73:        try (BufferedReader userBr = new BufferedReader(new FileReader("usernames.txt"));
+GameSeeder.java:74:             BufferedReader passBr = new BufferedReader(new FileReader("passwords.txt"));
+GameSeeder.java:75:             Connection conn = GameDatabase.getConnection()) {
+GameSeeder.java:77:            String uLine, pLine;
+GameSeeder.java:78:            int registeredCount = 0;
+GameSeeder.java:79:            while ((uLine = userBr.readLine()) != null && (pLine = passBr.readLine()) != null) {
+GameSeeder.java:80:                String username = uLine.trim();
+GameSeeder.java:81:                String password = pLine.trim();
+GameSeeder.java:83:                if (!username.matches("^[A-Za-z][A-Za-z0-9]{2,}$") || password.length() < 8) continue;
+GameSeeder.java:85:                try {
+GameSeeder.java:86:                    GameAuth.register(username, password, password);
+GameSeeder.java:87:                    registeredCount++;
+GameSeeder.java:88:                    int sessions = random.nextInt(3) + 1;
+GameSeeder.java:89:                    for (int i = 0; i < sessions; i++) {
+GameSeeder.java:90:                        insertScore(conn, username);
+GameSeeder.java:91:                    }
+GameSeeder.java:92:                } catch (Exception e) { /* Skip duplicates */ }
+GameSeeder.java:93:            }
+GameSeeder.java:94:            System.out.println("Successfully seeded " + registeredCount + " test users.");
+GameSeeder.java:95:        } catch (Exception e) {
+GameSeeder.java:96:            System.out.println("Error reading seed files: " + e.getMessage());
+GameSeeder.java:97:        }
+GameSeeder.java:98:    }
+GameSeeder.java:100:    private static void insertScore(Connection conn, String username) {
+GameSeeder.java:101:        String sql = "INSERT INTO ScorePerGame (UserID, PondID, CharsTyped, SurvivalTime, KillCount, GoldEarned, Waves) " +
+GameSeeder.java:102:                     "SELECT UserID, ?, ?, ?, ?, ?, ? FROM UserCredentials WHERE UserName = ?";
+GameSeeder.java:103:        
+GameSeeder.java:104:        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+GameSeeder.java:105:            int kills = random.nextInt(40) + 10;
+GameSeeder.java:106:            ps.setInt(1, random.nextInt(3) + 1); 
+GameSeeder.java:107:            ps.setInt(2, kills * 5);             
+GameSeeder.java:108:            ps.setInt(3, random.nextInt(800));   
+GameSeeder.java:109:            ps.setInt(4, kills);                 
+GameSeeder.java:110:            ps.setInt(5, (kills * 15));          
+GameSeeder.java:111:            ps.setInt(6, (kills / 8) + 1);       
+GameSeeder.java:112:            ps.setString(7, username);
+GameSeeder.java:113:            ps.executeUpdate();
+GameSeeder.java:114:        } catch (Exception e) { /* Handle error */ }
+GameSeeder.java:115:    }
+GameSeeder.java:116:}
+GameSound.java:1:import javax.sound.sampled.*;
+GameSound.java:2:import java.io.File;
+GameSound.java:3:import java.util.Properties;
+GameSound.java:4:import java.io.FileInputStream;
+GameSound.java:6:public class GameSound {
+GameSound.java:7:	private static Clip attackSfx = null;
+GameSound.java:8:	private static Properties props;
+GameSound.java:10:	public static void main(String[] args) {
+GameSound.java:11:		playAttackSFX();
+GameSound.java:12:		new java.util.Scanner(System.in).nextLine();
+GameSound.java:13:	}
+GameSound.java:15:	static {
+GameSound.java:16:		props = new Properties();
+GameSound.java:18:		try (FileInputStream in = new FileInputStream("config.properties")) {
+GameSound.java:19:			props.load(in);
+GameSound.java:20:		} catch (Exception error) {
+GameSound.java:21:			error.printStackTrace();
+GameSound.java:22:		}
+GameSound.java:23:	}
+GameSound.java:25:	public static void close() {
+GameSound.java:26:		attackSfx.close();
+GameSound.java:27:	}
+GameSound.java:29:	public static void playAttackSFX() {
+GameSound.java:30:		try {
+GameSound.java:31:			if (attackSfx == null) {
+GameSound.java:32:				File soundFile = new File(props.getProperty("game.attack-sfx-path"));
+GameSound.java:33:				AudioInputStream audioIn = AudioSystem.getAudioInputStream(soundFile);
+GameSound.java:34:				attackSfx = AudioSystem.getClip();
+GameSound.java:35:				attackSfx.open(audioIn);
+GameSound.java:36:			}
+GameSound.java:37:			attackSfx.stop();
+GameSound.java:38:			attackSfx.setMicrosecondPosition(0);
+GameSound.java:39:			attackSfx.start();
+GameSound.java:40:		} catch (Exception error) {
+GameSound.java:41:			error.printStackTrace();
+GameSound.java:42:		}
+GameSound.java:43:	}
+GameSound.java:44:}
+down.sql:1:-- =====================================================
+down.sql:2:-- DOWN SCRIPT: Cleanup and Database Removal
+down.sql:3:-- =====================================================
+down.sql:5:-- Switch to the database
+down.sql:6:USE fishdadb;
+down.sql:8:-- Disable foreign key checks to ensure a clean wipe
+down.sql:9:SET FOREIGN_KEY_CHECKS = 0;
+down.sql:11:-- 1. Drop Operational/Link Tables
+down.sql:12:DROP TABLE IF EXISTS DiscoveredFishes;
+down.sql:13:DROP TABLE IF EXISTS ScorePerGame;
+down.sql:14:DROP TABLE IF EXISTS UserPonds;
+down.sql:16:-- 2. Drop Core Tables
+down.sql:17:DROP TABLE IF EXISTS Fishes;
+down.sql:18:DROP TABLE IF EXISTS Users;
+down.sql:19:DROP TABLE IF EXISTS Ponds;
+down.sql:21:-- 3. Drop Reference Tables
+down.sql:22:DROP TABLE IF EXISTS FishRarity;
+down.sql:23:DROP TABLE IF EXISTS FishArts;
+down.sql:24:DROP TABLE IF EXISTS PondTypes;
+down.sql:25:DROP TABLE IF EXISTS Words;
+down.sql:27:-- 4. Final Cleanup
+down.sql:28:SET FOREIGN_KEY_CHECKS = 1;
+down.sql:30:-- Optional: Drop the entire database
+down.sql:31:-- DROP DATABASE IF EXISTS fishdadb;
+Game.java:1:import com.googlecode.lanterna.screen.Screen;
+Game.java:2:import com.googlecode.lanterna.graphics.TextGraphics;
+Game.java:3:import com.googlecode.lanterna.screen.TerminalScreen;
+Game.java:4:import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
+Game.java:5:import com.googlecode.lanterna.terminal.Terminal;
+Game.java:6:import com.googlecode.lanterna.*;
+Game.java:7:import com.googlecode.lanterna.*;
+Game.java:8:import com.googlecode.lanterna.gui2.*;
+Game.java:9:import com.googlecode.lanterna.gui2.dialogs.*;
+Game.java:10:import org.mindrot.jbcrypt.BCrypt;
+Game.java:12:import java.security.MessageDigest;
+Game.java:13:import java.sql.*;
+Game.java:14:import java.util.*;
+Game.java:15:import com.googlecode.lanterna.gui2.table.Table;
+Game.java:16:import com.googlecode.lanterna.input.*;
+Game.java:17:import java.util.concurrent.atomic.AtomicBoolean;
+Game.java:19:public class Game {
+Game.java:20:	public enum State {BANNER, AUTH, LOGIN, REGISTER, MENU, MAP, BESTIARY, LEADERBOARDS, BACKUP, COMBAT, END};
+Game.java:22:	private static MultiWindowTextGUI gui;
+Game.java:23:	private static Screen screen;
+Game.java:24:	private static BasicWindow authWindow;
+Game.java:25:	private static int userID = -1;
+Game.java:27:	private static State state;
+Game.java:28:	private static State lastMenuState;
+Game.java:29:	
+Game.java:30:	private static int pondID = -1;
+Game.java:32:	public static void main(String[] args) {
+Game.java:33:		// Do this upon exit
+Game.java:34:		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+Game.java:35:			if (screen != null) {
+Game.java:36:				try {
+Game.java:37:					screen.stopScreen();
+Game.java:38:				} catch (Exception error2) {
+Game.java:39:					error2.printStackTrace();
+Game.java:40:				}
+Game.java:41:			}
+Game.java:42:			GameDatabase.save();
+Game.java:43:			GameDatabase.close();
+Game.java:44:			GameSound.close();
+Game.java:45:		}));
+Game.java:47:		try {
+Game.java:48:			Terminal terminal = new DefaultTerminalFactory().createTerminal();
+Game.java:49:			screen = new TerminalScreen(terminal);
+Game.java:50:			screen.startScreen();
+Game.java:51:			gui = new MultiWindowTextGUI(screen);
+Game.java:53:			state = State.BANNER;
+Game.java:55:			while (state != State.END) {
+Game.java:56:				try {
+Game.java:57:					switch (state) {
+Game.java:58:						case BANNER:
+Game.java:59:							showBanner();
+Game.java:60:							state = State.AUTH;
+Game.java:61:							break;
+Game.java:62:						case AUTH:
+Game.java:63:							showAuthMenu();
+Game.java:64:							break;
+Game.java:65:						case LOGIN:
+Game.java:66:							showLogin();
+Game.java:67:							break;
+Game.java:68:						case REGISTER:
+Game.java:69:							showRegister();
+Game.java:70:							break;
+Game.java:71:						case MENU:
+Game.java:72:							lastMenuState = state;
+Game.java:73:							showMainMenu();
+Game.java:74:							break;
+Game.java:75:						case MAP:
+Game.java:76:							lastMenuState = state;
+Game.java:77:							showMap();
+Game.java:78:							break;
+Game.java:79:						case BESTIARY:
+Game.java:80:							showBestiary();
+Game.java:81:							state = lastMenuState;
+Game.java:82:							break;
+Game.java:83:						case LEADERBOARDS:
+Game.java:84:							showLeaderboards();
+Game.java:85:							state = lastMenuState;
+Game.java:86:							break;
+Game.java:87:						case BACKUP:
+Game.java:88:							showBackupMenu();
+Game.java:89:							state = State.MENU;
+Game.java:90:							break;
+Game.java:91:						case COMBAT:
+Game.java:92:							showCombat();
+Game.java:93:							state = State.MAP;
+Game.java:94:							break;
+Game.java:95:					}
+Game.java:96:				} catch (Exception error3) {
+Game.java:97:					error3.printStackTrace();
+Game.java:98:				}
+Game.java:99:			} // while loop
+Game.java:100:		} catch (Exception error) {
+Game.java:101:			error.printStackTrace();
+Game.java:102:		} finally {
+Game.java:103:			System.exit(0);
+Game.java:104:		}
+Game.java:105:	}
+Game.java:107:	private static void manageWindow(BasicWindow window) {
+Game.java:108:		try {
+Game.java:109:			gui.addWindow(window);
+Game.java:110:			while (gui.getWindows().contains(window)) {
+Game.java:111:				KeyStroke key = screen.pollInput();
+Game.java:112:				if (key != null) {
+Game.java:113:					gui.handleInput(key);
+Game.java:114:				}
+Game.java:115:				gui.updateScreen();
+Game.java:116:				Thread.sleep(10);
+Game.java:117:			}
+Game.java:118:		} catch (Exception error) {
+Game.java:119:			error.printStackTrace();		
+Game.java:120:		}
+Game.java:121:	}
+Game.java:123:	private static void showBanner() {
+Game.java:124:		BasicWindow window = new BasicWindow("FishdaTyper");
+Game.java:125:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:126:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:127:		window.setComponent(panel);
+Game.java:129:		ProgressBar progressBar = new ProgressBar(0, 100, 10);
+Game.java:130:		progressBar.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
+Game.java:131:			
+Game.java:132:		panel.addComponent(new Label("""
+Game.java:133:			          <°)))><        <°)))><        <°)))><
+Game.java:134:			
+Game.java:135:			______ _     _         _     _____                     
+Game.java:136:			|  ___(_)   | |       | |   |_   _|                    
+Game.java:137:			| |_   _ ___| |__   __| | __ _| |_   _ _ __   ___ _ __ 
+Game.java:138:			|  _| | / __| '_ \\ / _` |/ _` | | | | | '_ \\ / _ \\ '__|
+Game.java:139:			| |   | \\__ \\ | | | (_| | (_| | | |_| | |_) |  __/ |   
+Game.java:140:			\\_|   |_|___/_| |_|\\__,_|\\__,_\\_/\\__, | .__/ \\___|_|   
+Game.java:141:			                                  __/ | |              
+Game.java:142:			                                 |___/|_|              
+Game.java:143:			                WELCOME TO FISHDATYPER                
+Game.java:144:			
+Game.java:145:			         <°)))><        <°)))><        <°)))><
+Game.java:146:			"""));
+Game.java:149:		Label statusLabel = new Label("Starting FishdaTyper...");	
+Game.java:152:		panel.addComponent(statusLabel);
+Game.java:153:		panel.addComponent(progressBar);
+Game.java:155:		
+Game.java:157:		new Thread(() -> {
+Game.java:159:			try {
+Game.java:160:				for (int i = 0; i < 100; i++) {
+Game.java:161:					progressBar.setValue(i);
+Game.java:162:					gui.updateScreen();
+Game.java:163:					Thread.sleep(1);
+Game.java:164:				}
+Game.java:165:				Thread.sleep(1000);
+Game.java:166:			} catch (Exception error) {
+Game.java:167:				error.printStackTrace();
+Game.java:168:			} finally {
+Game.java:169:				statusLabel.setText("Waiting for MariaDB...");
+Game.java:170:				GameDatabase.waitForMariaDB();
+Game.java:171:				statusLabel.setText("Loading assets: attack sound effect...");
+Game.java:172:				GameSound.playAttackSFX();
+Game.java:173:				window.close();
+Game.java:174:			}
+Game.java:175:			
+Game.java:176:		}).start();
+Game.java:178:		gui.addWindowAndWait(window);
+Game.java:179:	}
+Game.java:181:	private static void showAuthMenu() {
+Game.java:182:		BasicWindow window = new BasicWindow("Authentication");
+Game.java:183:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:184:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:185:		window.setComponent(panel);
+Game.java:186:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:187:			@Override
+Game.java:188:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:189:				KeyType keyType = keyStroke.getKeyType();
+Game.java:191:				if (keyType == KeyType.Escape) {
+Game.java:192:					MessageDialogButton result = MessageDialog.showMessageDialog(gui, "Confirm Exit", "Are you sure you want to exit game?", MessageDialogButton.No, MessageDialogButton.Yes);
+Game.java:193:					if (result == MessageDialogButton.Yes) {
+Game.java:194:						state = State.END;
+Game.java:195:						window.close();
+Game.java:196:					}
+Game.java:197:				}
+Game.java:198:			}
+Game.java:199:		});
+Game.java:201:		Button loginButton = new Button("Login", () -> {
+Game.java:202:			state = State.LOGIN;
+Game.java:203:			window.close();
+Game.java:204:		}); 
+Game.java:206:		panel.addComponent(loginButton);
+Game.java:207:		panel.addComponent(new Button("Register", () -> {
+Game.java:208:			state = State.REGISTER;
+Game.java:209:			window.close();
+Game.java:210:		}));
+Game.java:211:		panel.addComponent(new Button("Exit", () -> {
+Game.java:212:			state = State.END;
+Game.java:213:			window.close();
+Game.java:214:		}));
+Game.java:216:		loginButton.takeFocus();
+Game.java:217:		
+Game.java:218:		manageWindow(window);
+Game.java:219:	}
+Game.java:221:	private static void showLogin() {
+Game.java:222:		BasicWindow window = new BasicWindow("Login");
+Game.java:223:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:224:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:225:		window.setComponent(panel);
+Game.java:226:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:227:			@Override
+Game.java:228:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:229:				KeyType keyType = keyStroke.getKeyType();
+Game.java:231:				if (keyType == KeyType.Escape) {
+Game.java:232:					state = State.AUTH;
+Game.java:233:					window.close();
+Game.java:234:					return;
+Game.java:235:				}
+Game.java:236:			}
+Game.java:237:		});
+Game.java:239:		TextBox usernameBox = new TextBox();
+Game.java:240:		TextBox passwordBox = new TextBox().setMask('*');
+Game.java:242:		Panel gridPanel = new Panel(new GridLayout(2));
+Game.java:243:		gridPanel.addComponent(new Label("Username"));
+Game.java:244:		gridPanel.addComponent(usernameBox);
+Game.java:245:		gridPanel.addComponent(new Label("Password"));
+Game.java:246:		gridPanel.addComponent(passwordBox);
+Game.java:247:		gridPanel.addComponent(new Button("Login", () -> {
+Game.java:248:			String username = usernameBox.getText();
+Game.java:249:			String password = passwordBox.getText();
+Game.java:251:			userID = GameAuth.login(username, password);
+Game.java:252:			String feedback = GameAuth.getFeedback();
+Game.java:253:			MessageDialog.showMessageDialog(gui, "Login", feedback, MessageDialogButton.OK);
+Game.java:255:			if (userID != -1) {
+Game.java:256:				state = State.MENU;
+Game.java:257:			}
+Game.java:258:			window.close();
+Game.java:259:		}));
+Game.java:260:		gridPanel.addComponent(new Button("Back", () -> {
+Game.java:261:			state = State.AUTH;
+Game.java:262:			window.close();
+Game.java:263:		}));
+Game.java:265:		panel.addComponent(gridPanel);
+Game.java:267:		usernameBox.takeFocus();
+Game.java:268:		
+Game.java:269:		gui.addWindowAndWait(window);
+Game.java:271:	}
+Game.java:273:	private static void showRegister() {
+Game.java:274:		BasicWindow window = new BasicWindow("Register");
+Game.java:275:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:276:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:277:		window.setComponent(panel);
+Game.java:278:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:279:			@Override
+Game.java:280:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:281:				KeyType keyType = keyStroke.getKeyType();
+Game.java:283:				if (keyType == KeyType.Escape) {
+Game.java:284:					state = State.AUTH;
+Game.java:285:					window.close();
+Game.java:286:					return;
+Game.java:287:				}
+Game.java:288:			}
+Game.java:289:		});
+Game.java:291:		TextBox usernameBox = new TextBox();
+Game.java:292:		TextBox passwordBox = new TextBox().setMask('*');
+Game.java:293:		TextBox passwordRepeatedBox = new TextBox().setMask('*');
+Game.java:295:		Panel gridPanel = new Panel(new GridLayout(2));
+Game.java:296:		gridPanel.addComponent(new Label("Username"));
+Game.java:297:		gridPanel.addComponent(usernameBox);
+Game.java:298:		gridPanel.addComponent(new Label("Password"));
+Game.java:299:		gridPanel.addComponent(passwordBox);
+Game.java:300:		gridPanel.addComponent(new Label("Comfirm Password"));
+Game.java:301:		gridPanel.addComponent(passwordRepeatedBox);
+Game.java:303:		gridPanel.addComponent(new Button("Register", () -> {
+Game.java:304:			String username = usernameBox.getText();
+Game.java:305:			String password = passwordBox.getText();
+Game.java:306:			String passwordRepeated = passwordRepeatedBox.getText();
+Game.java:308:			userID = GameAuth.register(username, password, passwordRepeated);
+Game.java:309:			String feedback = GameAuth.getFeedback();
+Game.java:310:			MessageDialog.showMessageDialog(gui, "Register", feedback, MessageDialogButton.OK);
+Game.java:312:			if (userID != -1) {
+Game.java:313:				state = State.AUTH;
+Game.java:314:			} 
+Game.java:315:			window.close();
+Game.java:316:		}));
+Game.java:318:		gridPanel.addComponent(new Button("Back", () -> {
+Game.java:319:			state = State.AUTH;
+Game.java:320:			window.close();
+Game.java:321:		}));
+Game.java:322:		
+Game.java:323:		panel.addComponent(gridPanel);
+Game.java:324:		
+Game.java:325:		usernameBox.takeFocus();
+Game.java:326:		
+Game.java:327:		gui.addWindowAndWait(window);
+Game.java:328:	}
+Game.java:329:	
+Game.java:330:	private static void showMainMenu() {
+Game.java:332:		BasicWindow window = new BasicWindow("Main Menu");
+Game.java:333:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:334:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:335:		window.setComponent(panel);
+Game.java:336:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:337:			@Override
+Game.java:338:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:339:				KeyType keyType = keyStroke.getKeyType();
+Game.java:341:				if (keyType == KeyType.Escape) {
+Game.java:342:					MessageDialogButton result = MessageDialog.showMessageDialog(gui, "Confirm Exit", "Are you sure you want to exit game?", MessageDialogButton.No, MessageDialogButton.Yes);
+Game.java:343:					if (result == MessageDialogButton.Yes) {
+Game.java:344:						state = State.END;
+Game.java:345:						window.close();
+Game.java:346:					}
+Game.java:347:				}
+Game.java:348:			}
+Game.java:349:		});
+Game.java:351:		Button playButton = new Button("Play", () -> {
+Game.java:352:			state = State.MAP;
+Game.java:353:			window.close();
+Game.java:354:		});
+Game.java:356:		panel.addComponent(playButton);
+Game.java:357:		panel.addComponent(new Button("Bestiary", () -> {
+Game.java:358:			state = State.BESTIARY;
+Game.java:359:			window.close();
+Game.java:360:		}));
+Game.java:361:		panel.addComponent(new Button("Leaderboards", () -> {
+Game.java:362:			state = State.LEADERBOARDS;
+Game.java:363:			window.close();
+Game.java:364:		}));
+Game.java:365:		panel.addComponent(new Button("Backup", () -> {
+Game.java:366:			state = State.BACKUP;
+Game.java:367:			window.close();
+Game.java:368:		}));
+Game.java:369:		panel.addComponent(new Button("Exit", () -> {
+Game.java:370:			state = State.END;
+Game.java:371:			window.close();
+Game.java:372:		}));
+Game.java:374:		playButton.takeFocus();
+Game.java:375:		
+Game.java:376:		gui.addWindowAndWait(window);
+Game.java:377:	}
+Game.java:378:	
+Game.java:380:	private static void showBackupMenu() {
+Game.java:381:		BasicWindow window = new BasicWindow("Backup Menu");
+Game.java:382:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:383:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:384:		window.setComponent(panel);
+Game.java:385:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:386:			@Override
+Game.java:387:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:388:				KeyType keyType = keyStroke.getKeyType();
+Game.java:390:				if (keyType == KeyType.Escape) {
+Game.java:391:					window.close();
+Game.java:392:					return;
+Game.java:393:				}
+Game.java:394:			}
+Game.java:395:		});
+Game.java:397:		Button backButton = new Button("Back", window::close);
+Game.java:399:		panel.addComponent(new Button("Save", () -> {
+Game.java:400:			GameDatabase.save();
+Game.java:401:			MessageDialog.showMessageDialog(gui, "Save", GameDatabase.getFeedback(), MessageDialogButton.OK);
+Game.java:402:		}));
+Game.java:403:		panel.addComponent(new Button("Load", () -> {
+Game.java:404:			GameDatabase.load();
+Game.java:405:			MessageDialog.showMessageDialog(gui, "Load", GameDatabase.getFeedback(), MessageDialogButton.OK);
+Game.java:406:		}));
+Game.java:407:		panel.addComponent(backButton);
+Game.java:409:		backButton.takeFocus();
+Game.java:410:		
+Game.java:411:		gui.addWindowAndWait(window);
+Game.java:413:	}
+Game.java:415:	private static void showBestiary() {
+Game.java:416:		BasicWindow window = new BasicWindow("Bestiary");
+Game.java:417:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:418:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:419:		window.setComponent(panel);
+Game.java:420:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:421:			@Override
+Game.java:422:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:423:				KeyType keyType = keyStroke.getKeyType();
+Game.java:425:				if (keyType == KeyType.Escape) {
+Game.java:426:					window.close();
+Game.java:427:					return;
+Game.java:428:				}
+Game.java:429:			}
+Game.java:430:		});
+Game.java:431:		
+Game.java:432:		Table<String> table = new Table<>("POND", "FISH", "RARITY", "KILLS"); 
+Game.java:433:		GameBestiary.updateTable(table, userID);
+Game.java:434:		table.setVisibleRows(10);
+Game.java:436:		Button backButton = new Button("Back", window::close);
+Game.java:437:		
+Game.java:438:		panel.addComponent(table);
+Game.java:439:		panel.addComponent(backButton);
+Game.java:440:		
+Game.java:441:		backButton.takeFocus();
+Game.java:442:		
+Game.java:443:		gui.addWindowAndWait(window);
+Game.java:444:	}
+Game.java:446:	private static void showLeaderboards() {
+Game.java:447:		BasicWindow window = new BasicWindow("Leaderboards");
+Game.java:448:		Panel panel = new Panel(new LinearLayout(Direction.HORIZONTAL));
+Game.java:449:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:450:		window.setComponent(panel);
+Game.java:451:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:452:			@Override
+Game.java:453:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:454:				KeyType keyType = keyStroke.getKeyType();
+Game.java:456:				if (keyType == KeyType.Escape) {
+Game.java:457:					window.close();
+Game.java:458:					return;
+Game.java:459:				}
+Game.java:460:			}
+Game.java:461:		});
+Game.java:462:		
+Game.java:463:		Table<String> table = new Table<>("RANK", "NAME", "STAT"); 
+Game.java:464:		GameLeaderboards.updateTable(table, "WPM");
+Game.java:465:		table.setVisibleRows(10);
+Game.java:467:		Panel buttonsPanel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:469:		for (String category : GameLeaderboards.getCategories()) {
+Game.java:470:			buttonsPanel.addComponent(new Button(category, () -> GameLeaderboards.updateTable(table, category)));
+Game.java:471:		}
+Game.java:472:		Button backButton = new Button("Back", window::close);
+Game.java:474:		buttonsPanel.addComponent(backButton);
+Game.java:476:		panel.addComponent(table);
+Game.java:477:		panel.addComponent(buttonsPanel);
+Game.java:478:		
+Game.java:479:		backButton.takeFocus();
+Game.java:481:		gui.addWindowAndWait(window);
+Game.java:482:	}
+Game.java:484:	private static void showMap() {
+Game.java:486:		GameMap.syncFromDatabase(userID);
+Game.java:488:		Panel mapPanel = new Panel();
+Game.java:489:		Label descriptionLabel = new Label("");
+Game.java:490:		descriptionLabel.setPreferredSize(new TerminalSize(GameMap.getMapWidth() * 2 + 1, 3));
+Game.java:491:		Label goldLabel = new Label("");
+Game.java:493:		mapPanel.setRenderer(new ComponentRenderer<Panel>() {
+Game.java:494:			@Override
+Game.java:495:			public void drawComponent(TextGUIGraphics graphics, Panel component) {
+Game.java:496:				graphics.setBackgroundColor(TextColor.ANSI.BLACK);
+Game.java:497:				graphics.fill(' ');
+Game.java:499:				for (int row = 0; row < GameMap.getMapHeight(); row++) {
+Game.java:500:					for (int col = 0; col < GameMap.getMapWidth(); col++) {
+Game.java:501:						int colUI = col * 2 + 1;
+Game.java:503:						GameMap.Location location = GameMap.getLocation(col, row);
+Game.java:504:							
+Game.java:505:						// print dot paths
+Game.java:506:						graphics.setForegroundColor(TextColor.ANSI.WHITE);
+Game.java:507:						graphics.putString(colUI, row, ".");
+Game.java:508:						
+Game.java:509:						// print location
+Game.java:510:						if (location != null) {
+Game.java:511:							if (location.pondID != -1) {
+Game.java:512:								// if it's a pond
+Game.java:513:								graphics.setForegroundColor(location.owned ? location.color : TextColor.ANSI.RED);
+Game.java:514:							} else {
+Game.java:515:								// if it's other location
+Game.java:516:								graphics.setForegroundColor(location.color);
+Game.java:517:							}
+Game.java:518:							graphics.putString(colUI, row, location.symbol);
+Game.java:519:						}  
+Game.java:521:						// print player
+Game.java:522:						if (GameMap.isPlayerIn(col, row)) {
+Game.java:523:							// displau player
+Game.java:524:							graphics.setForegroundColor(TextColor.ANSI.YELLOW);
+Game.java:525:							graphics.putString(colUI, row, "@");
+Game.java:526:							// display info about player's location
+Game.java:527:							if (location != null) {
+Game.java:528:								// if player is inside a location
+Game.java:529:								if (location.pondID != -1) {
+Game.java:530:									// if it's a pond
+Game.java:531:									descriptionLabel.setText(location.owned ? "Enter " + location.description : "Buy " + location.description + " for " + location.goldCost + "g");
+Game.java:532:								} else if (location.owned) {
+Game.java:533:									// if it's other interactible location
+Game.java:534:									descriptionLabel.setText("Enter " + location.description);
+Game.java:535:								}
+Game.java:536:							} else {
+Game.java:537:								// if it's not a location
+Game.java:538:								descriptionLabel.setText("");
+Game.java:539:							}
+Game.java:540:						} 
+Game.java:541:					}
+Game.java:542:				}
+Game.java:543:				
+Game.java:544:				goldLabel.setText("Balance: " + GameMap.getGoldCount() + "g");
+Game.java:545:			}
+Game.java:547:			@Override
+Game.java:548:			public TerminalSize getPreferredSize(Panel component) {
+Game.java:549:				return new TerminalSize(2 * GameMap.getMapWidth() + 1, GameMap.getMapHeight());
+Game.java:550:			}
+Game.java:552:		});
+Game.java:555:		BasicWindow window = new BasicWindow("Map");
+Game.java:556:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:557:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:558:		window.setComponent(panel);
+Game.java:559:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:560:			@Override
+Game.java:561:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:562:				KeyType keyType = keyStroke.getKeyType();
+Game.java:564:				if (keyType == KeyType.Escape) {
+Game.java:565:					// if player goes back to menu
+Game.java:566:					GameMap.saveUserPositionAndGold(userID);
+Game.java:567:					state = State.MENU;
+Game.java:568:					window.close();
+Game.java:569:					return;
+Game.java:570:				}	else if (keyType == KeyType.Enter) {
+Game.java:571:					// if player selected a map location
+Game.java:572:					GameMap.Location location = GameMap.getLocationAtPlayer();
+Game.java:573:					if (location == null) {
+Game.java:574:						return;
+Game.java:575:					} else if (location.pondID != -1) {
+Game.java:576:						// if it's a pond
+Game.java:577:						if (!location.owned) {
+Game.java:578:							// if the pond is locked
+Game.java:579:							if (GameMap.getGoldCount() >= location.goldCost) {
+Game.java:580:								// if player can buy the pond
+Game.java:581:								GameMap.unlockPond(location, userID);
+Game.java:582:								MessageDialog.showMessageDialog(gui, "Map", "Successfully unlocked the pond", MessageDialogButton.OK);
+Game.java:583:							} else {
+Game.java:584:								// if player has no enough gold
+Game.java:585:								MessageDialog.showMessageDialog(gui, "Map", "Insufficient gold to unlock pond!", MessageDialogButton.OK);
+Game.java:586:							}
+Game.java:587:						} else {
+Game.java:588:							// if the pond is unlocked
+Game.java:589:							MessageDialog.showMessageDialog(gui, "Map", "You've entered a pond!", MessageDialogButton.OK);
+Game.java:590:							GameMap.saveUserPositionAndGold(userID);
+Game.java:591:							pondID = location.pondID;
+Game.java:592:							state = State.COMBAT;
+Game.java:593:							window.close();
+Game.java:594:						}
+Game.java:595:					} else {
+Game.java:596:						// if it's other structures
+Game.java:597:						if (!location.owned) {
+Game.java:598:							// do nothing if it's not interactible
+Game.java:599:						} else {
+Game.java:600:							// if it's interactible
+Game.java:601:							MessageDialog.showMessageDialog(gui, "Map", "You're entering " + location.description + "!", MessageDialogButton.OK);
+Game.java:602:							GameMap.saveUserPositionAndGold(userID);
+Game.java:603:							state = location.state;
+Game.java:604:							window.close();
+Game.java:605:						} 
+Game.java:606:					}
+Game.java:607:				} else {
+Game.java:608:					// if player moves
+Game.java:609:					GameMap.handleMovement(keyStroke);
+Game.java:610:				}
+Game.java:611:			}
+Game.java:612:		});
+Game.java:613:		
+Game.java:614:		panel.addComponent(mapPanel);
+Game.java:615:		panel.addComponent(descriptionLabel);
+Game.java:616:		panel.addComponent(goldLabel);
+Game.java:617:		
+Game.java:618:		gui.addWindowAndWait(window);
+Game.java:619:	}
+Game.java:621:	private static void showCombat() {
+Game.java:622:		Panel combatPanel = new Panel();
+Game.java:623:		Label scoresLabel = new Label("");
+Game.java:624:		Label remainingInWaveLabel = new Label("");
+Game.java:625:		Label lastFishKilledLabel = new Label("");
+Game.java:626:		Panel lastFishKilledPanel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:628:		GameCombat.setFullscreenWidth(screen);
+Game.java:629:		GameCombat.syncFromDatabase(pondID);
+Game.java:630:		GameCombat.resetCombat();
+Game.java:632:		int laneCount = GameCombat.getLaneCount();
+Game.java:633:		int laneWidth = GameCombat.getLaneWidth();
+Game.java:634:		int stickmanCol = GameCombat.getStickmanCol();
+Game.java:635:		int stickmanWidth = GameCombat.getStickmanWidth();
+Game.java:636:		TerminalSize terminalSize = GameCombat.getTerminalSize();
+Game.java:637:		int screenWidth = terminalSize.getColumns();
+Game.java:638:		int middleRow = (terminalSize.getRows() - 1) / 2;
+Game.java:639:		
+Game.java:640:		lastFishKilledLabel.setPreferredSize(new TerminalSize(screenWidth, 2));
+Game.java:642:		combatPanel.setRenderer(new ComponentRenderer<Panel>() {
+Game.java:643:			@Override
+Game.java:644:			public void drawComponent(TextGUIGraphics graphics, Panel component) {
+Game.java:645:				// black background
+Game.java:646:				graphics.setBackgroundColor(TextColor.ANSI.BLACK);
+Game.java:647:				graphics.fill(' ');
+Game.java:649:				// draw lanes
+Game.java:650:				for (int i = 0; i < laneCount-1; i++) {
+Game.java:651:					graphics.setForegroundColor(TextColor.ANSI.WHITE);
+Game.java:652:					graphics.drawLine(stickmanCol + stickmanWidth, i*2+2, stickmanCol + stickmanWidth + laneWidth - 1, i*2+2,'-');
+Game.java:653:				}
+Game.java:655:				// Stickman
+Game.java:656:				graphics.setForegroundColor(TextColor.ANSI.GREEN);
+Game.java:657:				graphics.putString(stickmanCol, middleRow - 1, " [O] "); 
+Game.java:658:				graphics.putString(stickmanCol, middleRow, "--|--"); 
+Game.java:659:				graphics.putString(stickmanCol, middleRow + 1, " / \\ "); 
+Game.java:661:				// Fishes
+Game.java:662:				synchronized (GameCombat.getSwimmingFishes()) {
+Game.java:663:					for (GameCombat.ActiveFish fish : GameCombat.getSwimmingFishes()) {
+Game.java:664:						int row = 1 + (fish.lane * 2);
+Game.java:665:						// make sure fish color is bright enough
+Game.java:666:						TextColor c = fish.type.color;
+Game.java:667:						if (GameCombat.isTooDark(c)) {
+Game.java:668:							graphics.setBackgroundColor(TextColor.ANSI.WHITE);
+Game.java:669:						}
+Game.java:670:						// print head
+Game.java:671:						graphics.setForegroundColor(c).putString(fish.x, row, fish.type.head);
+Game.java:672:						int wordX = fish.x + fish.type.head.length();
+Game.java:673:						// print word
+Game.java:674:						for (int i = 0; i < fish.word.length(); i++) {
+Game.java:675:							// color the typed letters green, while untyped red
+Game.java:676:							graphics.setForegroundColor(i < fish.lettersTyped ? TextColor.ANSI.GREEN : TextColor.ANSI.RED);
+Game.java:677:							graphics.putString(wordX + i, row, "" + fish.word.charAt(i));
+Game.java:678:						}
+Game.java:679:						// print tail
+Game.java:680:						graphics.setForegroundColor(c).putString(wordX + fish.word.length(), row, fish.type.tail);
+Game.java:681:					}
+Game.java:682:				}
+Game.java:684:			}
+Game.java:686:			public TerminalSize getPreferredSize(Panel component) {
+Game.java:687:				return terminalSize;
+Game.java:688:			}
+Game.java:689:		});
+Game.java:690:		
+Game.java:691:		lastFishKilledPanel.setRenderer(new ComponentRenderer<Panel>() {
+Game.java:692:			@Override
+Game.java:693:			public void drawComponent(TextGUIGraphics graphics, Panel component) {
+Game.java:694:				// black background
+Game.java:695:				graphics.setBackgroundColor(TextColor.ANSI.BLACK);
+Game.java:696:				graphics.fill(' ');
+Game.java:698:				// last fish killed
+Game.java:699:				GameCombat.ActiveFish fish = GameCombat.getLastFishKilled();
+Game.java:700:				
+Game.java:701:				if (fish != null) {
+Game.java:702:					TextColor c = fish.type.color;
+Game.java:704:					if (GameCombat.isTooDark(c)) {
+Game.java:705:						graphics.setBackgroundColor(TextColor.ANSI.WHITE);
+Game.java:706:					}
+Game.java:708:					fish.x = 0;
+Game.java:709:					graphics.setForegroundColor(c).putString(fish.x, 0, fish.type.head);
+Game.java:710:					int wordX = fish.x + fish.type.head.length();
+Game.java:711:					// print word
+Game.java:712:					graphics.setForegroundColor(TextColor.ANSI.GREEN);
+Game.java:713:					graphics.putString(wordX, 0, fish.word);
+Game.java:714:					// print tail
+Game.java:715:					graphics.setForegroundColor(c).putString(wordX + fish.word.length(), 0, fish.type.tail);
+Game.java:716:					lastFishKilledPanel.setPreferredSize(new TerminalSize(fish.getFullWidth(), 1));
+Game.java:717:					lastFishKilledLabel.setText("[ " + fish.type.name + " (" + fish.type.rarity + " " + fish.type.coins + "g) of " + fish.type.pondType + " ]");
+Game.java:718:				}
+Game.java:719:				remainingInWaveLabel.setText("REMAINING IN WAVE: " + GameCombat.getNumRemainingInWave());
+Game.java:720:			}
+Game.java:721:			public TerminalSize getPreferredSize(Panel component) {
+Game.java:722:				return new TerminalSize(0, 1);
+Game.java:723:			}
+Game.java:724:		});
+Game.java:727:		BasicWindow window = new BasicWindow("Combat");
+Game.java:728:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+Game.java:729:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
+Game.java:730:		window.setComponent(panel);
+Game.java:731:		window.addWindowListener(new WindowListenerAdapter() {
+Game.java:732:			@Override
+Game.java:733:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+Game.java:734:				if (GameCombat.isGamePaused()) {
+Game.java:735:					return;
+Game.java:736:				}
+Game.java:738:				KeyType keyType = keyStroke.getKeyType();
+Game.java:740:				if (keyType == KeyType.Escape) {
+Game.java:741:					GameCombat.togglePause(true);
+Game.java:742:					MessageDialogButton result = MessageDialog.showMessageDialog(gui, "Confirm Exit", """
+Game.java:743:						Return to Menu? 
+Game.java:744:						(This will remove all progress
+Game.java:745:						from this Combat session!)
+Game.java:746:						""", MessageDialogButton.No, MessageDialogButton.Yes);
+Game.java:747:					if (result == MessageDialogButton.Yes) {
+Game.java:748:						window.close();
+Game.java:749:					} else {
+Game.java:750:						GameCombat.togglePause(false);
+Game.java:751:					}
+Game.java:752:				} else if (keyType == KeyType.Character) {
+Game.java:753:					char typed = keyStroke.getCharacter();
+Game.java:754:					boolean hasKilledFish = GameCombat.handleCharacterInput(userID, typed);
+Game.java:755:					if (hasKilledFish) {
+Game.java:756:						GameSound.playAttackSFX();
+Game.java:757:					}
+Game.java:758:				}
+Game.java:759:			}
+Game.java:760:		});
+Game.java:763:		Thread combatThread = new Thread(() -> {
+Game.java:764:			GameSound.playAttackSFX();
+Game.java:765:			boolean isDead = false;
+Game.java:766:			while (!isDead) {
+Game.java:767:				try {
+Game.java:768:					Thread.sleep(20);
+Game.java:770:					if (GameCombat.isGamePaused()) {
+Game.java:771:						continue;
+Game.java:772:					}
+Game.java:773:					
+Game.java:774:					boolean isNextWave = GameCombat.updateWave();
+Game.java:776:					if (isNextWave) {
+Game.java:777:						GameCombat.togglePause(true);
+Game.java:778:						MessageDialog.showMessageDialog(gui, "Combat", "Entering next wave...", MessageDialogButton.OK);
+Game.java:779:						GameCombat.togglePause(false);
+Game.java:780:						GameSound.playAttackSFX();
+Game.java:781:					}
+Game.java:783:					synchronized (GameCombat.getSwimmingFishes()) {
+Game.java:784:						isDead = GameCombat.updateCombat(userID, pondID);
+Game.java:785:					}
+Game.java:787:					scoresLabel.setText(GameCombat.getScores());
+Game.java:788:				} catch (Exception error) {}
+Game.java:789:			}
+Game.java:791:			GameSound.playAttackSFX();
+Game.java:792:			MessageDialog.showMessageDialog(gui, "Game Over!", GameCombat.getScores(), MessageDialogButton.OK);
+Game.java:793:			window.close();
+Game.java:794:		});
+Game.java:796:		combatThread.start();
+Game.java:798:		panel.addComponent(lastFishKilledPanel);
+Game.java:799:		panel.addComponent(lastFishKilledLabel);
+Game.java:800:		panel.addComponent(scoresLabel);
+Game.java:801:		panel.addComponent(remainingInWaveLabel);
+Game.java:802:		panel.addComponent(combatPanel);
+Game.java:803:		
+Game.java:804:		gui.addWindowAndWait(window);
+Game.java:806:		combatThread.interrupt();
+Game.java:807:	}
+Game.java:808:}
 GameAuth.java:1:import org.mindrot.jbcrypt.BCrypt;
 GameAuth.java:3:import java.sql.Connection;
 GameAuth.java:4:import java.sql.PreparedStatement;
@@ -746,291 +1744,6 @@ GameAuth.java:136:	public static String getFeedback() {
 GameAuth.java:137:		return feedback;
 GameAuth.java:138:	}
 GameAuth.java:139:}
-GameSeeder.java:1:import java.io.FileInputStream;
-GameSeeder.java:2:import java.io.BufferedReader;
-GameSeeder.java:3:import java.io.FileReader;
-GameSeeder.java:4:import java.io.IOException;
-GameSeeder.java:5:import java.net.Socket;
-GameSeeder.java:6:import java.sql.*;
-GameSeeder.java:7:import java.util.Properties;
-GameSeeder.java:8:import java.util.Random;
-GameSeeder.java:10:public class GameSeeder {
-GameSeeder.java:11:    private static final Random random = new Random();
-GameSeeder.java:12:    private static final Properties config = new Properties();
-GameSeeder.java:13:    private static Process dbProcess = null; // Track the process to kill it later
-GameSeeder.java:15:    public static void main(String[] args) {
-GameSeeder.java:16:        System.out.println("=== Starting Game Database Seeder ===");
-GameSeeder.java:17:        
-GameSeeder.java:18:        loadConfig();
-GameSeeder.java:20:        // 3. Seed Data
-GameSeeder.java:21:        seedAdmin();
-GameSeeder.java:22:        seedAdminDiscoveries(); 
-GameSeeder.java:23:        seedUsersAndScores();   
-GameSeeder.java:24:        
-GameSeeder.java:25:        System.out.println("=== Seeding Complete ===");
-GameSeeder.java:26:        
-GameSeeder.java:27:        // Optional: Shutdown DB if we were the ones who started it
-GameSeeder.java:28:        if (dbProcess != null) {
-GameSeeder.java:29:            System.out.println("Closing spawned database process...");
-GameSeeder.java:30:            dbProcess.destroy();
-GameSeeder.java:31:        }
-GameSeeder.java:32:    }
-GameSeeder.java:34:    private static void loadConfig() {
-GameSeeder.java:35:        try (FileInputStream fis = new FileInputStream("config.properties")) {
-GameSeeder.java:36:            config.load(fis);
-GameSeeder.java:37:        } catch (Exception e) {
-GameSeeder.java:38:            System.err.println("Fatal: Could not load config.properties");
-GameSeeder.java:39:            System.exit(1);
-GameSeeder.java:40:        }
-GameSeeder.java:41:    }
-GameSeeder.java:45:    private static void seedAdmin() {
-GameSeeder.java:46:        String username = config.getProperty("game.default-username");
-GameSeeder.java:47:        String password = config.getProperty("game.default-password", "").trim();
-GameSeeder.java:49:        if (username != null && username.matches("^[A-Za-z][A-Za-z0-9]{2,}$") && password.length() >= 8) {
-GameSeeder.java:50:            try {
-GameSeeder.java:51:                GameAuth.register(username, password, password);
-GameSeeder.java:52:                System.out.println("Admin account verified/registered.");
-GameSeeder.java:53:            } catch (Exception e) {
-GameSeeder.java:54:                System.out.println("Admin account already exists or registration failed.");
-GameSeeder.java:55:            }
-GameSeeder.java:56:        }
-GameSeeder.java:57:    }
-GameSeeder.java:59:    private static void seedAdminDiscoveries() {
-GameSeeder.java:60:        String sql = "INSERT IGNORE INTO DiscoveredFishes (UserID, FishID, KillCount) " +
-GameSeeder.java:61:                     "SELECT 1, FishID, 1 FROM Fishes";
-GameSeeder.java:62:        
-GameSeeder.java:63:        try (Connection conn = GameDatabase.getConnection();
-GameSeeder.java:64:             PreparedStatement ps = conn.prepareStatement(sql)) {
-GameSeeder.java:65:            int count = ps.executeUpdate();
-GameSeeder.java:66:            System.out.println("Seeded " + count + " fish discoveries for Admin.");
-GameSeeder.java:67:        } catch (Exception e) {
-GameSeeder.java:68:            System.out.println("Error seeding discoveries: " + e.getMessage());
-GameSeeder.java:69:        }
-GameSeeder.java:70:    }
-GameSeeder.java:72:    private static void seedUsersAndScores() {
-GameSeeder.java:73:        try (BufferedReader userBr = new BufferedReader(new FileReader("usernames.txt"));
-GameSeeder.java:74:             BufferedReader passBr = new BufferedReader(new FileReader("passwords.txt"));
-GameSeeder.java:75:             Connection conn = GameDatabase.getConnection()) {
-GameSeeder.java:77:            String uLine, pLine;
-GameSeeder.java:78:            int registeredCount = 0;
-GameSeeder.java:79:            while ((uLine = userBr.readLine()) != null && (pLine = passBr.readLine()) != null) {
-GameSeeder.java:80:                String username = uLine.trim();
-GameSeeder.java:81:                String password = pLine.trim();
-GameSeeder.java:83:                if (!username.matches("^[A-Za-z][A-Za-z0-9]{2,}$") || password.length() < 8) continue;
-GameSeeder.java:85:                try {
-GameSeeder.java:86:                    GameAuth.register(username, password, password);
-GameSeeder.java:87:                    registeredCount++;
-GameSeeder.java:88:                    int sessions = random.nextInt(3) + 1;
-GameSeeder.java:89:                    for (int i = 0; i < sessions; i++) {
-GameSeeder.java:90:                        insertScore(conn, username);
-GameSeeder.java:91:                    }
-GameSeeder.java:92:                } catch (Exception e) { /* Skip duplicates */ }
-GameSeeder.java:93:            }
-GameSeeder.java:94:            System.out.println("Successfully seeded " + registeredCount + " test users.");
-GameSeeder.java:95:        } catch (Exception e) {
-GameSeeder.java:96:            System.out.println("Error reading seed files: " + e.getMessage());
-GameSeeder.java:97:        }
-GameSeeder.java:98:    }
-GameSeeder.java:100:    private static void insertScore(Connection conn, String username) {
-GameSeeder.java:101:        String sql = "INSERT INTO ScorePerGame (UserID, PondID, CharsTyped, SurvivalTime, KillCount, GoldEarned, Waves) " +
-GameSeeder.java:102:                     "SELECT UserID, ?, ?, ?, ?, ?, ? FROM UserCredentials WHERE UserName = ?";
-GameSeeder.java:103:        
-GameSeeder.java:104:        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-GameSeeder.java:105:            int kills = random.nextInt(40) + 10;
-GameSeeder.java:106:            ps.setInt(1, random.nextInt(3) + 1); 
-GameSeeder.java:107:            ps.setInt(2, kills * 5);             
-GameSeeder.java:108:            ps.setInt(3, random.nextInt(800));   
-GameSeeder.java:109:            ps.setInt(4, kills);                 
-GameSeeder.java:110:            ps.setInt(5, (kills * 15));          
-GameSeeder.java:111:            ps.setInt(6, (kills / 8) + 1);       
-GameSeeder.java:112:            ps.setString(7, username);
-GameSeeder.java:113:            ps.executeUpdate();
-GameSeeder.java:114:        } catch (Exception e) { /* Handle error */ }
-GameSeeder.java:115:    }
-GameSeeder.java:116:}
-fishdadb.sql:1:DROP DATABASE IF EXISTS fishdadb;
-fishdadb.sql:3:CREATE DATABASE fishdadb;
-fishdadb.sql:4:USE fishdadb;
-fishdadb.sql:6:-- =====================================================
-fishdadb.sql:7:-- 1. REFERENCE TABLES (create first due to FK constraints)
-fishdadb.sql:8:-- =====================================================
-fishdadb.sql:10:--
-fishdadb.sql:12:-- Fish Rarity Levels
-fishdadb.sql:13:CREATE TABLE FishRarity (
-fishdadb.sql:14:	RarityID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:15:	Rarity VARCHAR(15) UNIQUE NOT NULL,
-fishdadb.sql:16:	SpawnRate FLOAT NOT NULL,
-fishdadb.sql:17:	CoinsReward INT DEFAULT 1 NOT NULL CHECK (CoinsReward >= 1) -- It must reward atleast 1 gold
-fishdadb.sql:18:);
-fishdadb.sql:20:-- Fish ASCII Art Components
-fishdadb.sql:21:CREATE TABLE FishArts (
-fishdadb.sql:22:	FishArtID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:23:	AsciiHead VARCHAR(15) NOT NULL,
-fishdadb.sql:24:	AsciiTail VARCHAR(15) NOT NULL
-fishdadb.sql:25:);
-fishdadb.sql:30:-- Pond Types
-fishdadb.sql:31:CREATE TABLE PondTypes (
-fishdadb.sql:32:	PondTypeID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:33:	PondType VARCHAR(20) UNIQUE NOT NULL
-fishdadb.sql:34:);
-fishdadb.sql:37:-- =====================================================
-fishdadb.sql:38:-- 1.5. ISOLATED TABLE
-fishdadb.sql:39:-- =====================================================
-fishdadb.sql:41:-- Word Bank for Typing Game
-fishdadb.sql:42:CREATE TABLE Words (
-fishdadb.sql:43:	WordID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:44:	WordText VARCHAR(30) UNIQUE NOT NULL
-fishdadb.sql:45:		CHECK (LENGTH(WordText) >= 1) -- Minimum word length
-fishdadb.sql:46:);
-fishdadb.sql:48:-- =====================================================
-fishdadb.sql:49:-- 2. CORE TABLES
-fishdadb.sql:50:-- =====================================================
-fishdadb.sql:53:-- Users
-fishdadb.sql:54:CREATE TABLE Users (
-fishdadb.sql:55:	UserID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:56:	Gold INT DEFAULT 0 NOT NULL,
-fishdadb.sql:57:	LastMapRow INT DEFAULT -1 NOT NULL,
-fishdadb.sql:58:	LastMapCol INT DEFAULT -1 NOT NULL,
-fishdadb.sql:59:	CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
-fishdadb.sql:60:);
-fishdadb.sql:62:-- UserCredentials
-fishdadb.sql:63:CREATE TABLE UserCredentials (
-fishdadb.sql:64:	CredentialID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:65:	UserID INT UNIQUE NOT NULL,
-fishdadb.sql:66:	UserName VARCHAR(60) UNIQUE NOT NULL,
-fishdadb.sql:67:	PasswordHash VARCHAR(255) NOT NULL,
-fishdadb.sql:68:	FOREIGN KEY (UserID) REFERENCES Users(UserID)
-fishdadb.sql:69:		ON DELETE CASCADE
-fishdadb.sql:70:);
-fishdadb.sql:72:-- Ponds
-fishdadb.sql:73:CREATE TABLE Ponds (
-fishdadb.sql:74:	PondID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:75:	PondName VARCHAR(100) UNIQUE NOT NULL,
-fishdadb.sql:76:	PondTypeID INT NOT NULL,
-fishdadb.sql:77:	PondCost INT DEFAULT 0 NOT NULL,
-fishdadb.sql:78:	PondSymbol CHAR(1) DEFAULT '?' NOT NULL,
-fishdadb.sql:79:	FOREIGN KEY (PondTypeID) REFERENCES PondTypes(PondTypeID)
-fishdadb.sql:80:		ON DELETE RESTRICT
-fishdadb.sql:81:);
-fishdadb.sql:85:-- Fish Species
-fishdadb.sql:86:CREATE TABLE Fishes (
-fishdadb.sql:87:	FishID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:88:	FishName VARCHAR(100) UNIQUE NOT NULL,
-fishdadb.sql:89:	FishArtID INT NOT NULL,
-fishdadb.sql:90:	RarityID INT NOT NULL,
-fishdadb.sql:91:	PondTypeID INT NOT NULL,
-fishdadb.sql:92:	FishColorHex CHAR(7) DEFAULT '#FFFFFF' NOT NULL
-fishdadb.sql:93:		CHECK (FishColorHex REGEXP '^#[a-fA-F0-9]{6}$'), -- It must only contain hex color
-fishdadb.sql:94:	FOREIGN KEY (PondTypeID) REFERENCES PondTypes(PondTypeID)
-fishdadb.sql:95:		ON DELETE RESTRICT,
-fishdadb.sql:96:	FOREIGN KEY (FishArtID) REFERENCES FishArts(FishArtID)
-fishdadb.sql:97:		ON DELETE RESTRICT,
-fishdadb.sql:98:	FOREIGN KEY (RarityID) REFERENCES FishRarity(RarityID)
-fishdadb.sql:99:		ON DELETE RESTRICT
-fishdadb.sql:100:);
-fishdadb.sql:103:-- =====================================================
-fishdadb.sql:104:-- 3. JUNCTION & ACTIVITY TABLES
-fishdadb.sql:105:-- =====================================================
-fishdadb.sql:107:-- User-Pond Ownership (which ponds user has unlocked)
-fishdadb.sql:108:CREATE TABLE UserPonds (
-fishdadb.sql:109:	UserPondID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:110:	UserID INT NOT NULL,
-fishdadb.sql:111:	PondID INT NOT NULL,
-fishdadb.sql:112:	PurchasedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-fishdadb.sql:113:	UNIQUE (UserID, PondID),
-fishdadb.sql:114:	FOREIGN KEY (UserID) REFERENCES Users(UserID)
-fishdadb.sql:115:		ON DELETE CASCADE,
-fishdadb.sql:116:	FOREIGN KEY (PondID) REFERENCES Ponds(PondID)
-fishdadb.sql:117:		ON DELETE CASCADE
-fishdadb.sql:118:);
-fishdadb.sql:120:-- User's Discovered Fish Collection
-fishdadb.sql:121:CREATE TABLE DiscoveredFishes (
-fishdadb.sql:122:	DiscoveredFishID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:123:	UserID INT NOT NULL,
-fishdadb.sql:124:	FishID INT NOT NULL,
-fishdadb.sql:125:	KillCount INT DEFAULT 1 NOT NULL
-fishdadb.sql:126:		CHECK (KillCount >=	1),
-fishdadb.sql:127:	DiscoveredAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-fishdadb.sql:128:	UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
-fishdadb.sql:129:	UNIQUE (UserID, FishID),
-fishdadb.sql:130:	FOREIGN KEY (UserID) REFERENCES Users(UserID) 
-fishdadb.sql:131:		ON DELETE CASCADE,
-fishdadb.sql:132:	FOREIGN KEY (FishID) REFERENCES Fishes(FishID) 
-fishdadb.sql:133:		ON DELETE CASCADE
-fishdadb.sql:134:);
-fishdadb.sql:136:-- Game Session Scores
-fishdadb.sql:137:CREATE TABLE ScorePerGame (
-fishdadb.sql:138:	ScoreID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-fishdadb.sql:139:	UserID INT NOT NULL,
-fishdadb.sql:140:	PondID INT NOT NULL,
-fishdadb.sql:141:	CharsTyped INT DEFAULT 0 NOT NULL,
-fishdadb.sql:142:	SurvivalTime INT DEFAULT 0 NOT NULL,
-fishdadb.sql:143:	KillCount INT DEFAULT 0 NOT NULL,
-fishdadb.sql:144:	GoldEarned INT DEFAULT 0 NOT NULL,
-fishdadb.sql:145:	Waves INT DEFAULT 0 NOT NULL,
-fishdadb.sql:146:	PlayedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-fishdadb.sql:147:	FOREIGN KEY (UserID) REFERENCES Users(UserID) 
-fishdadb.sql:148:		ON DELETE CASCADE,
-fishdadb.sql:149:	FOREIGN KEY (PondID) REFERENCES Ponds(PondID) 
-fishdadb.sql:150:		ON DELETE CASCADE
-fishdadb.sql:151:);
-fishdadb.sql:154:-- Seed
-fishdadb.sql:156:INSERT INTO FishRarity (Rarity, SpawnRate, CoinsReward) VALUES 
-fishdadb.sql:157:('Common', 50, 1),
-fishdadb.sql:158:('Uncommon', 15, 2),
-fishdadb.sql:159:('Rare', 5, 5),
-fishdadb.sql:160:('Epic', 1.5,	9),
-fishdadb.sql:161:('Legendary', 0.3, 15);
-fishdadb.sql:163:INSERT INTO FishArts (AsciiHead, AsciiTail) VALUES
-fishdadb.sql:164:('<(', ')><|'),
-fishdadb.sql:165:('O>', '><'),
-fishdadb.sql:166:('{~', '~}'),
-fishdadb.sql:167:('C>', '>>'),
-fishdadb.sql:168:('<*', '*>');
-fishdadb.sql:170:INSERT INTO PondTypes (PondType) VALUES
-fishdadb.sql:171:('Freshwater'),
-fishdadb.sql:172:('Saltwater'),
-fishdadb.sql:173:('Brackish');
-fishdadb.sql:175:INSERT INTO Ponds (PondName, PondTypeID, PondCost, PondSymbol) VALUES
-fishdadb.sql:176:('Pampanga River', 1, 0, '1'),   -- Freshwater
-fishdadb.sql:177:('Manila Bay', 2, 100, '2'),      -- Saltwater
-fishdadb.sql:178:('Dagupan Estuary', 3, 250, '3'); -- Brackish
-fishdadb.sql:181:-- Freshwater Fishes (PondTypeID 1)
-fishdadb.sql:182:INSERT INTO Fishes (FishName, FishArtID, RarityID, PondTypeID, FishColorHex) VALUES
-fishdadb.sql:183:('Tilapia', 1, 1, 1, '#C0C0C0'), ('Catfish', 2, 1, 1, '#4B3621'), 
-fishdadb.sql:184:('Snakehead', 3, 2, 1, '#2E8B57'), ('Carp', 4, 2, 1, '#DAA520'),
-fishdadb.sql:185:('Gourami', 5, 1, 1, '#FF6347'), ('Neon Tetra', 1, 3, 1, '#0000FF'),
-fishdadb.sql:186:('Guppy', 2, 1, 1, '#FFD700'), ('Angelfish', 3, 2, 1, '#FFFFFF'),
-fishdadb.sql:187:('Betta', 4, 3, 1, '#FF0000'), ('Arowana', 5, 5, 1, '#FFD700'),
-fishdadb.sql:188:('Loach', 1, 1, 1, '#8B4513'), ('Barb', 2, 2, 1, '#FFA500'),
-fishdadb.sql:189:('Oscar', 3, 4, 1, '#FF4500'), ('Discus', 4, 4, 1, '#00CED1'),
-fishdadb.sql:190:('Killifish', 5, 1, 1, '#7FFF00'), ('Cichlid', 1, 2, 1, '#BA55D3'),
-fishdadb.sql:191:('Pike', 2, 3, 1, '#556B2F'), ('Perch', 3, 1, 1, '#F4A460'),
-fishdadb.sql:192:('Eel', 4, 3, 1, '#000000'), ('Ghost Shrimp', 5, 5, 1, '#F0F8FF');
-fishdadb.sql:194:-- Saltwater Fishes (PondTypeID 2)
-fishdadb.sql:195:INSERT INTO Fishes (FishName, FishArtID, RarityID, PondTypeID, FishColorHex) VALUES
-fishdadb.sql:196:('Tuna', 1, 1, 2, '#4682B4'), ('Mackerel', 2, 1, 2, '#708090'),
-fishdadb.sql:197:('Grouper', 3, 2, 2, '#8FBC8F'), ('Snapper', 4, 2, 2, '#CD5C5C'),
-fishdadb.sql:198:('Mahi-Mahi', 5, 3, 2, '#ADFF2F'), ('Clownfish', 1, 3, 2, '#FF8C00'),
-fishdadb.sql:199:('Blue Tang', 2, 2, 2, '#0000CD'), ('Lionfish', 3, 4, 2, '#A52A2A'),
-fishdadb.sql:200:('Moorish Idol', 4, 4, 2, '#FFFF00'), ('Barracuda', 5, 3, 2, '#A9A9A9'),
-fishdadb.sql:201:('Stingray', 1, 4, 2, '#D2B48C'), ('Swordfish', 2, 5, 2, '#778899'),
-fishdadb.sql:202:('Great White', 3, 5, 2, '#D3D3D3'), ('Hammerhead', 4, 5, 2, '#C0C0C0'),
-fishdadb.sql:203:('Seahorse', 5, 3, 2, '#EE82EE'), ('Butterflyfish', 1, 2, 2, '#FFFACD'),
-fishdadb.sql:204:('Wrasse', 2, 1, 2, '#48D1CC'), ('Parrotfish', 3, 2, 2, '#32CD32'),
-fishdadb.sql:205:('Triggerfish', 4, 3, 2, '#FF00FF'), ('Boxfish', 5, 4, 2, '#F0E68C');
-fishdadb.sql:207:-- Brackish Fishes (PondTypeID 3)
-fishdadb.sql:208:INSERT INTO Fishes (FishName, FishArtID, RarityID, PondTypeID, FishColorHex) VALUES
-fishdadb.sql:209:('Milkfish', 1, 1, 3, '#F5F5F5'), ('Barramundi', 2, 2, 3, '#BDB76B'),
-fishdadb.sql:210:('Tarpon', 3, 3, 3, '#E6E6FA'), ('Mullet', 4, 1, 3, '#696969'),
-fishdadb.sql:211:('Archerfish', 5, 3, 3, '#9ACD32'), ('Mudskipper', 1, 1, 3, '#556B2F'),
-fishdadb.sql:212:('Scat', 2, 2, 3, '#DAA520'), ('Pufferfish', 3, 4, 3, '#FFE4B5'),
-fishdadb.sql:213:('Monos', 4, 2, 3, '#C0C0C0'), ('Batfish', 5, 4, 3, '#2F4F4F'),
-fishdadb.sql:214:('Spotted Scat', 1, 2, 3, '#808000'), ('Glassfish', 2, 1, 3, '#E0FFFF'),
-fishdadb.sql:215:('Bumblebee Goby', 3, 3, 3, '#000000'), ('Pistol Shrimp', 4, 5, 3, '#FF7F50'),
-fishdadb.sql:216:('Red Mangrove Crab', 5, 4, 3, '#B22222'), ('Needlefish', 1, 3, 3, '#AFEEEE'),
-fishdadb.sql:217:('Jack', 2, 1, 3, '#708090'), ('Threadfin', 3, 2, 3, '#F5DEB3'),
-fishdadb.sql:218:('Ladyfish', 4, 2, 3, '#F0FFF0'), ('Stonefish', 5, 5, 3, '#8B4513');
 GameCombat.java:1:import com.googlecode.lanterna.*;
 GameCombat.java:2:import com.googlecode.lanterna.graphics.TextGraphics;
 GameCombat.java:3:import com.googlecode.lanterna.input.*;
@@ -1437,694 +2150,43 @@ GameCombat.java:474:			} catch (Exception error2) {}
 GameCombat.java:475:		}
 GameCombat.java:476:	}
 GameCombat.java:477:}
-Game.java:1:import com.googlecode.lanterna.screen.Screen;
-Game.java:2:import com.googlecode.lanterna.graphics.TextGraphics;
-Game.java:3:import com.googlecode.lanterna.screen.TerminalScreen;
-Game.java:4:import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
-Game.java:5:import com.googlecode.lanterna.terminal.Terminal;
-Game.java:6:import com.googlecode.lanterna.*;
-Game.java:7:import com.googlecode.lanterna.gui2.*;
-Game.java:8:import com.googlecode.lanterna.gui2.dialogs.*;
-Game.java:9:import org.mindrot.jbcrypt.BCrypt;
-Game.java:11:import java.security.MessageDigest;
-Game.java:12:import java.sql.*;
-Game.java:13:import java.util.*;
-Game.java:14:import com.googlecode.lanterna.gui2.table.Table;
-Game.java:15:import com.googlecode.lanterna.input.*;
-Game.java:16:import java.util.concurrent.atomic.AtomicBoolean;
-Game.java:18:public class Game {
-Game.java:19:	public enum State {BANNER, AUTH, LOGIN, REGISTER, MENU, MAP, BESTIARY, LEADERBOARDS, BACKUP, COMBAT, END};
-Game.java:21:	private static MultiWindowTextGUI gui;
-Game.java:22:	private static Screen screen;
-Game.java:23:	private static BasicWindow authWindow;
-Game.java:24:	private static int userID = -1;
-Game.java:26:	private static State state;
-Game.java:27:	private static State lastMenuState;
-Game.java:28:	
-Game.java:29:	private static int pondID = -1;
-Game.java:31:	public static void main(String[] args) {
-Game.java:32:		try {
-Game.java:33:			Terminal terminal = new DefaultTerminalFactory().createTerminal();
-Game.java:34:			screen = new TerminalScreen(terminal);
-Game.java:35:			screen.startScreen();
-Game.java:36:			gui = new MultiWindowTextGUI(screen);
-Game.java:38:			state = State.BANNER;
-Game.java:40:			while (true) {
-Game.java:41:				try {
-Game.java:42:					switch (state) {
-Game.java:43:						case BANNER:
-Game.java:44:							showBanner();
-Game.java:45:							state = State.AUTH;
-Game.java:46:							break;
-Game.java:47:						case AUTH:
-Game.java:48:							showAuthMenu();
-Game.java:49:							break;
-Game.java:50:						case LOGIN:
-Game.java:51:							showLogin();
-Game.java:52:							break;
-Game.java:53:						case REGISTER:
-Game.java:54:							showRegister();
-Game.java:55:							break;
-Game.java:56:						case MENU:
-Game.java:57:							lastMenuState = state;
-Game.java:58:							showMainMenu();
-Game.java:59:							break;
-Game.java:60:						case MAP:
-Game.java:61:							lastMenuState = state;
-Game.java:62:							showMap();
-Game.java:63:							break;
-Game.java:64:						case BESTIARY:
-Game.java:65:							showBestiary();
-Game.java:66:							state = lastMenuState;
-Game.java:67:							break;
-Game.java:68:						case LEADERBOARDS:
-Game.java:69:							showLeaderboards();
-Game.java:70:							state = lastMenuState;
-Game.java:71:							break;
-Game.java:72:						case BACKUP:
-Game.java:73:							showBackupMenu();
-Game.java:74:							state = State.MENU;
-Game.java:75:							break;
-Game.java:76:						case COMBAT:
-Game.java:77:							showCombat();
-Game.java:78:							state = State.MAP;
-Game.java:79:							break;
-Game.java:80:						case END:
-Game.java:81:							return;
-Game.java:82:					}
-Game.java:83:				} catch (Exception error3) {
-Game.java:84:					error3.printStackTrace();
-Game.java:85:				}
-Game.java:86:			}
-Game.java:87:		} catch (Exception error) {
-Game.java:88:			error.printStackTrace();
-Game.java:89:		} finally {
-Game.java:90:			if (screen != null) {
-Game.java:91:				try {
-Game.java:92:					screen.stopScreen();
-Game.java:93:				} catch (Exception error2) {
-Game.java:94:					error2.printStackTrace();
-Game.java:95:				}
-Game.java:96:			}
-Game.java:97:		}
-Game.java:98:		System.out.println("HELLO WORLD!");
-Game.java:99:	}
-Game.java:101:	private static void showBanner() {
-Game.java:102:		BasicWindow window = new BasicWindow("FishdaTyper");
-Game.java:103:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:104:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:105:		window.setComponent(panel);
-Game.java:107:		ProgressBar progressBar = new ProgressBar(0, 100, 10);
-Game.java:108:		progressBar.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
-Game.java:109:			
-Game.java:110:		panel.addComponent(new Label("""
-Game.java:111:			          <°)))><        <°)))><        <°)))><
-Game.java:112:			
-Game.java:113:			______ _     _         _     _____                     
-Game.java:114:			|  ___(_)   | |       | |   |_   _|                    
-Game.java:115:			| |_   _ ___| |__   __| | __ _| |_   _ _ __   ___ _ __ 
-Game.java:116:			|  _| | / __| '_ \\ / _` |/ _` | | | | | '_ \\ / _ \\ '__|
-Game.java:117:			| |   | \\__ \\ | | | (_| | (_| | | |_| | |_) |  __/ |   
-Game.java:118:			\\_|   |_|___/_| |_|\\__,_|\\__,_\\_/\\__, | .__/ \\___|_|   
-Game.java:119:			                                  __/ | |              
-Game.java:120:			                                 |___/|_|              
-Game.java:121:			                WELCOME TO FISHDATYPER                
-Game.java:122:			
-Game.java:123:			         <°)))><        <°)))><        <°)))><
-Game.java:124:			"""));
-Game.java:127:		Label statusLabel = new Label("Starting FishdaTyper...");	
-Game.java:130:		panel.addComponent(statusLabel);
-Game.java:131:		panel.addComponent(progressBar);
-Game.java:133:		
-Game.java:135:		new Thread(() -> {
-Game.java:137:			try {
-Game.java:138:				for (int i = 0; i < 100; i++) {
-Game.java:139:					progressBar.setValue(i);
-Game.java:140:					gui.updateScreen();
-Game.java:141:					Thread.sleep(1);
-Game.java:142:				}
-Game.java:143:				Thread.sleep(1000);
-Game.java:144:			} catch (Exception error) {
-Game.java:145:				error.printStackTrace();
-Game.java:146:			} finally {
-Game.java:147:				statusLabel.setText("Waiting for MariaDB...");
-Game.java:148:				GameDatabase.waitForMariaDB();
-Game.java:149:				statusLabel.setText("Loading assets: attack sound effect...");
-Game.java:150:				GameSound.playAttackSFX();
-Game.java:151:				window.close();
-Game.java:152:			}
-Game.java:153:			
-Game.java:154:		}).start();
-Game.java:156:		gui.addWindowAndWait(window);
-Game.java:157:	}
-Game.java:159:	private static void showAuthMenu() {
-Game.java:160:		BasicWindow window = new BasicWindow("Authentication");
-Game.java:161:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:162:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:163:		window.setComponent(panel);
-Game.java:164:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:165:			@Override
-Game.java:166:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:167:				KeyType keyType = keyStroke.getKeyType();
-Game.java:169:				if (keyType == KeyType.Escape) {
-Game.java:170:					MessageDialogButton result = MessageDialog.showMessageDialog(gui, "Confirm Exit", "Are you sure you want to exit game?", MessageDialogButton.No, MessageDialogButton.Yes);
-Game.java:171:					if (result == MessageDialogButton.Yes) {
-Game.java:172:						state = State.END;
-Game.java:173:						window.close();
-Game.java:174:					}
-Game.java:175:				}
-Game.java:176:			}
-Game.java:177:		});
-Game.java:179:		Button loginButton = new Button("Login", () -> {
-Game.java:180:			state = State.LOGIN;
-Game.java:181:			window.close();
-Game.java:182:		}); 
-Game.java:184:		panel.addComponent(loginButton);
-Game.java:185:		panel.addComponent(new Button("Register", () -> {
-Game.java:186:			state = State.REGISTER;
-Game.java:187:			window.close();
-Game.java:188:		}));
-Game.java:189:		panel.addComponent(new Button("Exit", () -> {
-Game.java:190:			state = State.END;
-Game.java:191:			window.close();
-Game.java:192:		}));
-Game.java:194:		loginButton.takeFocus();
-Game.java:195:		
-Game.java:196:		gui.addWindowAndWait(window);
-Game.java:197:	}
-Game.java:199:	private static void showLogin() {
-Game.java:200:		BasicWindow window = new BasicWindow("Login");
-Game.java:201:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:202:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:203:		window.setComponent(panel);
-Game.java:204:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:205:			@Override
-Game.java:206:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:207:				KeyType keyType = keyStroke.getKeyType();
-Game.java:209:				if (keyType == KeyType.Escape) {
-Game.java:210:					state = State.AUTH;
-Game.java:211:					window.close();
-Game.java:212:					return;
-Game.java:213:				}
-Game.java:214:			}
-Game.java:215:		});
-Game.java:217:		TextBox usernameBox = new TextBox();
-Game.java:218:		TextBox passwordBox = new TextBox().setMask('*');
-Game.java:220:		Panel gridPanel = new Panel(new GridLayout(2));
-Game.java:221:		gridPanel.addComponent(new Label("Username"));
-Game.java:222:		gridPanel.addComponent(usernameBox);
-Game.java:223:		gridPanel.addComponent(new Label("Password"));
-Game.java:224:		gridPanel.addComponent(passwordBox);
-Game.java:225:		gridPanel.addComponent(new Button("Login", () -> {
-Game.java:226:			String username = usernameBox.getText();
-Game.java:227:			String password = passwordBox.getText();
-Game.java:229:			userID = GameAuth.login(username, password);
-Game.java:230:			String feedback = GameAuth.getFeedback();
-Game.java:231:			MessageDialog.showMessageDialog(gui, "Login", feedback, MessageDialogButton.OK);
-Game.java:233:			if (userID != -1) {
-Game.java:234:				state = State.MENU;
-Game.java:235:			}
-Game.java:236:			window.close();
-Game.java:237:		}));
-Game.java:238:		gridPanel.addComponent(new Button("Back", () -> {
-Game.java:239:			state = State.AUTH;
-Game.java:240:			window.close();
-Game.java:241:		}));
-Game.java:243:		panel.addComponent(gridPanel);
-Game.java:245:		usernameBox.takeFocus();
-Game.java:246:		
-Game.java:247:		gui.addWindowAndWait(window);
-Game.java:249:	}
-Game.java:251:	private static void showRegister() {
-Game.java:252:		BasicWindow window = new BasicWindow("Register");
-Game.java:253:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:254:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:255:		window.setComponent(panel);
-Game.java:256:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:257:			@Override
-Game.java:258:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:259:				KeyType keyType = keyStroke.getKeyType();
-Game.java:261:				if (keyType == KeyType.Escape) {
-Game.java:262:					state = State.AUTH;
-Game.java:263:					window.close();
-Game.java:264:					return;
-Game.java:265:				}
-Game.java:266:			}
-Game.java:267:		});
-Game.java:269:		TextBox usernameBox = new TextBox();
-Game.java:270:		TextBox passwordBox = new TextBox().setMask('*');
-Game.java:271:		TextBox passwordRepeatedBox = new TextBox().setMask('*');
-Game.java:273:		Panel gridPanel = new Panel(new GridLayout(2));
-Game.java:274:		gridPanel.addComponent(new Label("Username"));
-Game.java:275:		gridPanel.addComponent(usernameBox);
-Game.java:276:		gridPanel.addComponent(new Label("Password"));
-Game.java:277:		gridPanel.addComponent(passwordBox);
-Game.java:278:		gridPanel.addComponent(new Label("Comfirm Password"));
-Game.java:279:		gridPanel.addComponent(passwordRepeatedBox);
-Game.java:281:		gridPanel.addComponent(new Button("Register", () -> {
-Game.java:282:			String username = usernameBox.getText();
-Game.java:283:			String password = passwordBox.getText();
-Game.java:284:			String passwordRepeated = passwordRepeatedBox.getText();
-Game.java:286:			userID = GameAuth.register(username, password, passwordRepeated);
-Game.java:287:			String feedback = GameAuth.getFeedback();
-Game.java:288:			MessageDialog.showMessageDialog(gui, "Register", feedback, MessageDialogButton.OK);
-Game.java:290:			if (userID != -1) {
-Game.java:291:				state = State.AUTH;
-Game.java:292:			} 
-Game.java:293:			window.close();
-Game.java:294:		}));
-Game.java:296:		gridPanel.addComponent(new Button("Back", () -> {
-Game.java:297:			state = State.AUTH;
-Game.java:298:			window.close();
-Game.java:299:		}));
-Game.java:300:		
-Game.java:301:		panel.addComponent(gridPanel);
-Game.java:302:		
-Game.java:303:		usernameBox.takeFocus();
-Game.java:304:		
-Game.java:305:		gui.addWindowAndWait(window);
-Game.java:306:	}
-Game.java:307:	
-Game.java:308:	private static void showMainMenu() {
-Game.java:310:		BasicWindow window = new BasicWindow("Main Menu");
-Game.java:311:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:312:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:313:		window.setComponent(panel);
-Game.java:314:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:315:			@Override
-Game.java:316:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:317:				KeyType keyType = keyStroke.getKeyType();
-Game.java:319:				if (keyType == KeyType.Escape) {
-Game.java:320:					MessageDialogButton result = MessageDialog.showMessageDialog(gui, "Confirm Exit", "Are you sure you want to exit game?", MessageDialogButton.No, MessageDialogButton.Yes);
-Game.java:321:					if (result == MessageDialogButton.Yes) {
-Game.java:322:						state = State.END;
-Game.java:323:						window.close();
-Game.java:324:					}
-Game.java:325:				}
-Game.java:326:			}
-Game.java:327:		});
-Game.java:329:		Button playButton = new Button("Play", () -> {
-Game.java:330:			state = State.MAP;
-Game.java:331:			window.close();
-Game.java:332:		});
-Game.java:334:		panel.addComponent(playButton);
-Game.java:335:		panel.addComponent(new Button("Bestiary", () -> {
-Game.java:336:			state = State.BESTIARY;
-Game.java:337:			window.close();
-Game.java:338:		}));
-Game.java:339:		panel.addComponent(new Button("Leaderboards", () -> {
-Game.java:340:			state = State.LEADERBOARDS;
-Game.java:341:			window.close();
-Game.java:342:		}));
-Game.java:343:		panel.addComponent(new Button("Backup", () -> {
-Game.java:344:			state = State.BACKUP;
-Game.java:345:			window.close();
-Game.java:346:		}));
-Game.java:347:		panel.addComponent(new Button("Exit", () -> {
-Game.java:348:			state = State.END;
-Game.java:349:			window.close();
-Game.java:350:		}));
-Game.java:352:		playButton.takeFocus();
-Game.java:353:		
-Game.java:354:		gui.addWindowAndWait(window);
-Game.java:355:	}
-Game.java:356:	
-Game.java:358:	private static void showBackupMenu() {
-Game.java:359:		BasicWindow window = new BasicWindow("Backup Menu");
-Game.java:360:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:361:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:362:		window.setComponent(panel);
-Game.java:363:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:364:			@Override
-Game.java:365:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:366:				KeyType keyType = keyStroke.getKeyType();
-Game.java:368:				if (keyType == KeyType.Escape) {
-Game.java:369:					window.close();
-Game.java:370:					return;
-Game.java:371:				}
-Game.java:372:			}
-Game.java:373:		});
-Game.java:375:		Button backButton = new Button("Back", window::close);
-Game.java:377:		panel.addComponent(new Button("Save", () -> {
-Game.java:378:			GameDatabase.save();
-Game.java:379:			MessageDialog.showMessageDialog(gui, "Save", GameDatabase.getFeedback(), MessageDialogButton.OK);
-Game.java:380:		}));
-Game.java:381:		panel.addComponent(new Button("Load", () -> {
-Game.java:382:			GameDatabase.load();
-Game.java:383:			MessageDialog.showMessageDialog(gui, "Load", GameDatabase.getFeedback(), MessageDialogButton.OK);
-Game.java:384:		}));
-Game.java:385:		panel.addComponent(backButton);
-Game.java:387:		backButton.takeFocus();
-Game.java:388:		
-Game.java:389:		gui.addWindowAndWait(window);
-Game.java:391:	}
-Game.java:393:	private static void showBestiary() {
-Game.java:394:		BasicWindow window = new BasicWindow("Bestiary");
-Game.java:395:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:396:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:397:		window.setComponent(panel);
-Game.java:398:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:399:			@Override
-Game.java:400:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:401:				KeyType keyType = keyStroke.getKeyType();
-Game.java:403:				if (keyType == KeyType.Escape) {
-Game.java:404:					window.close();
-Game.java:405:					return;
-Game.java:406:				}
-Game.java:407:			}
-Game.java:408:		});
-Game.java:409:		
-Game.java:410:		Table<String> table = new Table<>("POND", "FISH", "RARITY", "KILLS"); 
-Game.java:411:		GameBestiary.updateTable(table, userID);
-Game.java:412:		table.setVisibleRows(10);
-Game.java:414:		Button backButton = new Button("Back", window::close);
-Game.java:415:		
-Game.java:416:		panel.addComponent(table);
-Game.java:417:		panel.addComponent(backButton);
-Game.java:418:		
-Game.java:419:		backButton.takeFocus();
-Game.java:420:		
-Game.java:421:		gui.addWindowAndWait(window);
-Game.java:422:	}
-Game.java:424:	private static void showLeaderboards() {
-Game.java:425:		BasicWindow window = new BasicWindow("Leaderboards");
-Game.java:426:		Panel panel = new Panel(new LinearLayout(Direction.HORIZONTAL));
-Game.java:427:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:428:		window.setComponent(panel);
-Game.java:429:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:430:			@Override
-Game.java:431:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:432:				KeyType keyType = keyStroke.getKeyType();
-Game.java:434:				if (keyType == KeyType.Escape) {
-Game.java:435:					window.close();
-Game.java:436:					return;
-Game.java:437:				}
-Game.java:438:			}
-Game.java:439:		});
-Game.java:440:		
-Game.java:441:		Table<String> table = new Table<>("RANK", "NAME", "STAT"); 
-Game.java:442:		GameLeaderboards.updateTable(table, "WPM");
-Game.java:443:		table.setVisibleRows(10);
-Game.java:445:		Panel buttonsPanel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:447:		for (String category : GameLeaderboards.getCategories()) {
-Game.java:448:			buttonsPanel.addComponent(new Button(category, () -> GameLeaderboards.updateTable(table, category)));
-Game.java:449:		}
-Game.java:450:		Button backButton = new Button("Back", window::close);
-Game.java:452:		buttonsPanel.addComponent(backButton);
-Game.java:454:		panel.addComponent(table);
-Game.java:455:		panel.addComponent(buttonsPanel);
-Game.java:456:		
-Game.java:457:		backButton.takeFocus();
-Game.java:459:		gui.addWindowAndWait(window);
-Game.java:460:	}
-Game.java:462:	private static void showMap() {
-Game.java:464:		GameMap.syncFromDatabase(userID);
-Game.java:466:		Panel mapPanel = new Panel();
-Game.java:467:		Label descriptionLabel = new Label("");
-Game.java:468:		descriptionLabel.setPreferredSize(new TerminalSize(GameMap.getMapWidth() * 2 + 1, 3));
-Game.java:469:		Label goldLabel = new Label("");
-Game.java:471:		mapPanel.setRenderer(new ComponentRenderer<Panel>() {
-Game.java:472:			@Override
-Game.java:473:			public void drawComponent(TextGUIGraphics graphics, Panel component) {
-Game.java:474:				graphics.setBackgroundColor(TextColor.ANSI.BLACK);
-Game.java:475:				graphics.fill(' ');
-Game.java:477:				for (int row = 0; row < GameMap.getMapHeight(); row++) {
-Game.java:478:					for (int col = 0; col < GameMap.getMapWidth(); col++) {
-Game.java:479:						int colUI = col * 2 + 1;
-Game.java:481:						GameMap.Location location = GameMap.getLocation(col, row);
-Game.java:482:							
-Game.java:483:						// print dot paths
-Game.java:484:						graphics.setForegroundColor(TextColor.ANSI.WHITE);
-Game.java:485:						graphics.putString(colUI, row, ".");
-Game.java:486:						
-Game.java:487:						// print location
-Game.java:488:						if (location != null) {
-Game.java:489:							if (location.pondID != -1) {
-Game.java:490:								// if it's a pond
-Game.java:491:								graphics.setForegroundColor(location.owned ? location.color : TextColor.ANSI.RED);
-Game.java:492:							} else {
-Game.java:493:								// if it's other location
-Game.java:494:								graphics.setForegroundColor(location.color);
-Game.java:495:							}
-Game.java:496:							graphics.putString(colUI, row, location.symbol);
-Game.java:497:						}  
-Game.java:499:						// print player
-Game.java:500:						if (GameMap.isPlayerIn(col, row)) {
-Game.java:501:							// displau player
-Game.java:502:							graphics.setForegroundColor(TextColor.ANSI.YELLOW);
-Game.java:503:							graphics.putString(colUI, row, "@");
-Game.java:504:							// display info about player's location
-Game.java:505:							if (location != null) {
-Game.java:506:								// if player is inside a location
-Game.java:507:								if (location.pondID != -1) {
-Game.java:508:									// if it's a pond
-Game.java:509:									descriptionLabel.setText(location.owned ? "Enter " + location.description : "Buy " + location.description + " for " + location.goldCost + "g");
-Game.java:510:								} else if (location.owned) {
-Game.java:511:									// if it's other interactible location
-Game.java:512:									descriptionLabel.setText("Enter " + location.description);
-Game.java:513:								}
-Game.java:514:							} else {
-Game.java:515:								// if it's not a location
-Game.java:516:								descriptionLabel.setText("");
-Game.java:517:							}
-Game.java:518:						} 
-Game.java:519:					}
-Game.java:520:				}
-Game.java:521:				
-Game.java:522:				goldLabel.setText("Balance: " + GameMap.getGoldCount() + "g");
-Game.java:523:			}
-Game.java:525:			@Override
-Game.java:526:			public TerminalSize getPreferredSize(Panel component) {
-Game.java:527:				return new TerminalSize(2 * GameMap.getMapWidth() + 1, GameMap.getMapHeight());
-Game.java:528:			}
-Game.java:530:		});
-Game.java:533:		BasicWindow window = new BasicWindow("Map");
-Game.java:534:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:535:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:536:		window.setComponent(panel);
-Game.java:537:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:538:			@Override
-Game.java:539:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:540:				KeyType keyType = keyStroke.getKeyType();
-Game.java:542:				if (keyType == KeyType.Escape) {
-Game.java:543:					// if player goes back to menu
-Game.java:544:					GameMap.saveUserPositionAndGold(userID);
-Game.java:545:					state = State.MENU;
-Game.java:546:					window.close();
-Game.java:547:					return;
-Game.java:548:				}	else if (keyType == KeyType.Enter) {
-Game.java:549:					// if player selected a map location
-Game.java:550:					GameMap.Location location = GameMap.getLocationAtPlayer();
-Game.java:551:					if (location == null) {
-Game.java:552:						return;
-Game.java:553:					} else if (location.pondID != -1) {
-Game.java:554:						// if it's a pond
-Game.java:555:						if (!location.owned) {
-Game.java:556:							// if the pond is locked
-Game.java:557:							if (GameMap.getGoldCount() >= location.goldCost) {
-Game.java:558:								// if player can buy the pond
-Game.java:559:								GameMap.unlockPond(location, userID);
-Game.java:560:								MessageDialog.showMessageDialog(gui, "Map", "Successfully unlocked the pond", MessageDialogButton.OK);
-Game.java:561:							} else {
-Game.java:562:								// if player has no enough gold
-Game.java:563:								MessageDialog.showMessageDialog(gui, "Map", "Insufficient gold to unlock pond!", MessageDialogButton.OK);
-Game.java:564:							}
-Game.java:565:						} else {
-Game.java:566:							// if the pond is unlocked
-Game.java:567:							MessageDialog.showMessageDialog(gui, "Map", "You've entered a pond!", MessageDialogButton.OK);
-Game.java:568:							GameMap.saveUserPositionAndGold(userID);
-Game.java:569:							pondID = location.pondID;
-Game.java:570:							state = State.COMBAT;
-Game.java:571:							window.close();
-Game.java:572:						}
-Game.java:573:					} else {
-Game.java:574:						// if it's other structures
-Game.java:575:						if (!location.owned) {
-Game.java:576:							// do nothing if it's not interactible
-Game.java:577:						} else {
-Game.java:578:							// if it's interactible
-Game.java:579:							MessageDialog.showMessageDialog(gui, "Map", "You're entering " + location.description + "!", MessageDialogButton.OK);
-Game.java:580:							GameMap.saveUserPositionAndGold(userID);
-Game.java:581:							state = location.state;
-Game.java:582:							window.close();
-Game.java:583:						} 
-Game.java:584:					}
-Game.java:585:				} else {
-Game.java:586:					// if player moves
-Game.java:587:					GameMap.handleMovement(keyStroke);
-Game.java:588:				}
-Game.java:589:			}
-Game.java:590:		});
-Game.java:591:		
-Game.java:592:		panel.addComponent(mapPanel);
-Game.java:593:		panel.addComponent(descriptionLabel);
-Game.java:594:		panel.addComponent(goldLabel);
-Game.java:595:		
-Game.java:596:		gui.addWindowAndWait(window);
-Game.java:597:	}
-Game.java:599:	private static void showCombat() {
-Game.java:600:		Panel combatPanel = new Panel();
-Game.java:601:		Label scoresLabel = new Label("");
-Game.java:602:		Label remainingInWaveLabel = new Label("");
-Game.java:603:		Label lastFishKilledLabel = new Label("");
-Game.java:604:		Panel lastFishKilledPanel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:606:		GameCombat.setFullscreenWidth(screen);
-Game.java:607:		GameCombat.syncFromDatabase(pondID);
-Game.java:608:		GameCombat.resetCombat();
-Game.java:610:		int laneCount = GameCombat.getLaneCount();
-Game.java:611:		int laneWidth = GameCombat.getLaneWidth();
-Game.java:612:		int stickmanCol = GameCombat.getStickmanCol();
-Game.java:613:		int stickmanWidth = GameCombat.getStickmanWidth();
-Game.java:614:		TerminalSize terminalSize = GameCombat.getTerminalSize();
-Game.java:615:		int screenWidth = terminalSize.getColumns();
-Game.java:616:		int middleRow = (terminalSize.getRows() - 1) / 2;
-Game.java:617:		
-Game.java:618:		lastFishKilledLabel.setPreferredSize(new TerminalSize(screenWidth, 2));
-Game.java:620:		combatPanel.setRenderer(new ComponentRenderer<Panel>() {
-Game.java:621:			@Override
-Game.java:622:			public void drawComponent(TextGUIGraphics graphics, Panel component) {
-Game.java:623:				// black background
-Game.java:624:				graphics.setBackgroundColor(TextColor.ANSI.BLACK);
-Game.java:625:				graphics.fill(' ');
-Game.java:627:				// draw lanes
-Game.java:628:				for (int i = 0; i < laneCount-1; i++) {
-Game.java:629:					graphics.setForegroundColor(TextColor.ANSI.WHITE);
-Game.java:630:					graphics.drawLine(stickmanCol + stickmanWidth, i*2+2, stickmanCol + stickmanWidth + laneWidth - 1, i*2+2,'-');
-Game.java:631:				}
-Game.java:633:				// Stickman
-Game.java:634:				graphics.setForegroundColor(TextColor.ANSI.GREEN);
-Game.java:635:				graphics.putString(stickmanCol, middleRow - 1, " [O] "); 
-Game.java:636:				graphics.putString(stickmanCol, middleRow, "--|--"); 
-Game.java:637:				graphics.putString(stickmanCol, middleRow + 1, " / \\ "); 
-Game.java:639:				// Fishes
-Game.java:640:				synchronized (GameCombat.getSwimmingFishes()) {
-Game.java:641:					for (GameCombat.ActiveFish fish : GameCombat.getSwimmingFishes()) {
-Game.java:642:						int row = 1 + (fish.lane * 2);
-Game.java:643:						// make sure fish color is bright enough
-Game.java:644:						TextColor c = fish.type.color;
-Game.java:645:						if (GameCombat.isTooDark(c)) {
-Game.java:646:							graphics.setBackgroundColor(TextColor.ANSI.WHITE);
-Game.java:647:						}
-Game.java:648:						// print head
-Game.java:649:						graphics.setForegroundColor(c).putString(fish.x, row, fish.type.head);
-Game.java:650:						int wordX = fish.x + fish.type.head.length();
-Game.java:651:						// print word
-Game.java:652:						for (int i = 0; i < fish.word.length(); i++) {
-Game.java:653:							// color the typed letters green, while untyped red
-Game.java:654:							graphics.setForegroundColor(i < fish.lettersTyped ? TextColor.ANSI.GREEN : TextColor.ANSI.RED);
-Game.java:655:							graphics.putString(wordX + i, row, "" + fish.word.charAt(i));
-Game.java:656:						}
-Game.java:657:						// print tail
-Game.java:658:						graphics.setForegroundColor(c).putString(wordX + fish.word.length(), row, fish.type.tail);
-Game.java:659:					}
-Game.java:660:				}
-Game.java:662:			}
-Game.java:664:			public TerminalSize getPreferredSize(Panel component) {
-Game.java:665:				return terminalSize;
-Game.java:666:			}
-Game.java:667:		});
-Game.java:668:		
-Game.java:669:		lastFishKilledPanel.setRenderer(new ComponentRenderer<Panel>() {
-Game.java:670:			@Override
-Game.java:671:			public void drawComponent(TextGUIGraphics graphics, Panel component) {
-Game.java:672:				// black background
-Game.java:673:				graphics.setBackgroundColor(TextColor.ANSI.BLACK);
-Game.java:674:				graphics.fill(' ');
-Game.java:676:				// last fish killed
-Game.java:677:				GameCombat.ActiveFish fish = GameCombat.getLastFishKilled();
-Game.java:678:				
-Game.java:679:				if (fish != null) {
-Game.java:680:					TextColor c = fish.type.color;
-Game.java:682:					if (GameCombat.isTooDark(c)) {
-Game.java:683:						graphics.setBackgroundColor(TextColor.ANSI.WHITE);
-Game.java:684:					}
-Game.java:686:					fish.x = 0;
-Game.java:687:					graphics.setForegroundColor(c).putString(fish.x, 0, fish.type.head);
-Game.java:688:					int wordX = fish.x + fish.type.head.length();
-Game.java:689:					// print word
-Game.java:690:					graphics.setForegroundColor(TextColor.ANSI.GREEN);
-Game.java:691:					graphics.putString(wordX, 0, fish.word);
-Game.java:692:					// print tail
-Game.java:693:					graphics.setForegroundColor(c).putString(wordX + fish.word.length(), 0, fish.type.tail);
-Game.java:694:					lastFishKilledPanel.setPreferredSize(new TerminalSize(fish.getFullWidth(), 1));
-Game.java:695:					lastFishKilledLabel.setText("[ " + fish.type.name + " (" + fish.type.rarity + " " + fish.type.coins + "g) of " + fish.type.pondType + " ]");
-Game.java:696:				}
-Game.java:697:				remainingInWaveLabel.setText("REMAINING IN WAVE: " + GameCombat.getNumRemainingInWave());
-Game.java:698:			}
-Game.java:699:			public TerminalSize getPreferredSize(Panel component) {
-Game.java:700:				return new TerminalSize(0, 1);
-Game.java:701:			}
-Game.java:702:		});
-Game.java:705:		BasicWindow window = new BasicWindow("Combat");
-Game.java:706:		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-Game.java:707:		window.setHints(Arrays.asList(Window.Hint.CENTERED));
-Game.java:708:		window.setComponent(panel);
-Game.java:709:		window.addWindowListener(new WindowListenerAdapter() {
-Game.java:710:			@Override
-Game.java:711:			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-Game.java:712:				if (GameCombat.isGamePaused()) {
-Game.java:713:					return;
-Game.java:714:				}
-Game.java:716:				KeyType keyType = keyStroke.getKeyType();
-Game.java:718:				if (keyType == KeyType.Escape) {
-Game.java:719:					GameCombat.togglePause(true);
-Game.java:720:					MessageDialogButton result = MessageDialog.showMessageDialog(gui, "Confirm Exit", """
-Game.java:721:						Return to Menu? 
-Game.java:722:						(This will remove all progress
-Game.java:723:						from this Combat session!)
-Game.java:724:						""", MessageDialogButton.No, MessageDialogButton.Yes);
-Game.java:725:					if (result == MessageDialogButton.Yes) {
-Game.java:726:						window.close();
-Game.java:727:					} else {
-Game.java:728:						GameCombat.togglePause(false);
-Game.java:729:					}
-Game.java:730:				} else if (keyType == KeyType.Character) {
-Game.java:731:					char typed = keyStroke.getCharacter();
-Game.java:732:					boolean hasKilledFish = GameCombat.handleCharacterInput(userID, typed);
-Game.java:733:					if (hasKilledFish) {
-Game.java:734:						GameSound.playAttackSFX();
-Game.java:735:					}
-Game.java:736:				}
-Game.java:737:			}
-Game.java:738:		});
-Game.java:741:		Thread combatThread = new Thread(() -> {
-Game.java:742:			GameSound.playAttackSFX();
-Game.java:743:			boolean isDead = false;
-Game.java:744:			while (!isDead) {
-Game.java:745:				try {
-Game.java:746:					Thread.sleep(20);
-Game.java:748:					if (GameCombat.isGamePaused()) {
-Game.java:749:						continue;
-Game.java:750:					}
-Game.java:751:					
-Game.java:752:					boolean isNextWave = GameCombat.updateWave();
-Game.java:754:					if (isNextWave) {
-Game.java:755:						GameCombat.togglePause(true);
-Game.java:756:						MessageDialog.showMessageDialog(gui, "Combat", "Entering next wave...", MessageDialogButton.OK);
-Game.java:757:						GameCombat.togglePause(false);
-Game.java:758:						GameSound.playAttackSFX();
-Game.java:759:					}
-Game.java:761:					synchronized (GameCombat.getSwimmingFishes()) {
-Game.java:762:						isDead = GameCombat.updateCombat(userID, pondID);
-Game.java:763:					}
-Game.java:765:					scoresLabel.setText(GameCombat.getScores());
-Game.java:766:				} catch (Exception error) {}
-Game.java:767:			}
-Game.java:769:			GameSound.playAttackSFX();
-Game.java:770:			MessageDialog.showMessageDialog(gui, "Game Over!", GameCombat.getScores(), MessageDialogButton.OK);
-Game.java:771:			window.close();
-Game.java:772:		});
-Game.java:774:		combatThread.start();
-Game.java:776:		panel.addComponent(lastFishKilledPanel);
-Game.java:777:		panel.addComponent(lastFishKilledLabel);
-Game.java:778:		panel.addComponent(scoresLabel);
-Game.java:779:		panel.addComponent(remainingInWaveLabel);
-Game.java:780:		panel.addComponent(combatPanel);
-Game.java:781:		
-Game.java:782:		gui.addWindowAndWait(window);
-Game.java:784:		combatThread.interrupt();
-Game.java:785:	}
-Game.java:786:}
+GameBestiary.java:1:import java.sql.*;
+GameBestiary.java:2:import com.googlecode.lanterna.gui2.table.Table;
+GameBestiary.java:3:import com.googlecode.lanterna.gui2.table.TableModel;
+GameBestiary.java:5:public class GameBestiary {
+GameBestiary.java:6:	public static void updateTable(Table<String> table, int userID) {
+GameBestiary.java:7:		TableModel<String> model = new TableModel<>("POND", "FISH", "RARITY", "KILLS");
+GameBestiary.java:9:		String sql = """
+GameBestiary.java:10:			SELECT 
+GameBestiary.java:11:					PondType, 
+GameBestiary.java:12:					CONCAT(AsciiHead, ' ', FishName, ' ', AsciiTail) AS Fish,
+GameBestiary.java:13:					Rarity, 
+GameBestiary.java:14:					KillCount
+GameBestiary.java:15:			FROM DiscoveredFishes df
+GameBestiary.java:16:			JOIN Fishes f ON df.FishID = f.FishID
+GameBestiary.java:17:			JOIN PondTypes pt ON f.PondTypeID = pt.PondTypeID
+GameBestiary.java:18:			JOIN FishArts fa ON f.FishArtID = fa.FishArtID
+GameBestiary.java:19:			JOIN FishRarity fr ON f.RarityID = fr.RarityID
+GameBestiary.java:20:			WHERE df.UserID = ?
+GameBestiary.java:21:			ORDER BY PondType, FishName;
+GameBestiary.java:22:			""";
+GameBestiary.java:24:		Connection conn = GameDatabase.getConnection();
+GameBestiary.java:25:		try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+GameBestiary.java:26:			pstmt.setInt(1, userID);
+GameBestiary.java:27:			ResultSet rs = pstmt.executeQuery();
+GameBestiary.java:29:			while (rs.next()) {
+GameBestiary.java:30:				String pondType = rs.getString("PondType");
+GameBestiary.java:31:				String fish = rs.getString("Fish");
+GameBestiary.java:32:				String rarity = rs.getString("Rarity");
+GameBestiary.java:33:				String killCount = rs.getString("KillCount");
+GameBestiary.java:35:				model.addRow(pondType, fish, rarity, killCount);
+GameBestiary.java:36:			}
+GameBestiary.java:37:		} catch (Exception error) {
+GameBestiary.java:38:			error.printStackTrace();
+GameBestiary.java:39:		}
+GameBestiary.java:41:		table.setTableModel(model);
+GameBestiary.java:42:	}
+GameBestiary.java:43:}
 seed-words.sql:1:TRUNCATE TABLE Words;
 seed-words.sql:2:INSERT INTO Words (WordText) VALUES 
 seed-words.sql:3:('a'),

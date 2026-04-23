@@ -6,12 +6,12 @@ until mysqladmin -hlocalhost -P3306 -uroot -proot ping --silent 2>/dev/null; do
 done
 echo "MariaDB is ready!"
 
-false && {
-	mariadb -hlocalhost -P3306 -uroot -proot < <(
-		cat fishdadb.sql
-		cat seed-words.sql
-	)
-	./tools/run.sh GameSeeder
-}
+mariadb -hlocalhost -P3306 -uroot -proot < <(
+	cat down.sql
+	cat up.sql
+	cat seed.sql
+	cat seed-words.sql
+)
+./tools/run.sh GameSeeder
 
 ./tools/run.sh "$@"

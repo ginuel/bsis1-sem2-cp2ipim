@@ -21,7 +21,6 @@ public class Game {
 
 	private static MultiWindowTextGUI gui;
 	private static Screen screen;
-	private static BasicWindow authWindow;
 	private static int userID = -1;
 
 	private static State state;
@@ -101,22 +100,6 @@ public class Game {
 			error.printStackTrace();
 		} finally {
 			System.exit(0);
-		}
-	}
-
-	private static void manageWindow(BasicWindow window) {
-		try {
-			gui.addWindow(window);
-			while (gui.getWindows().contains(window)) {
-				KeyStroke key = screen.pollInput();
-				if (key != null) {
-					gui.handleInput(key);
-				}
-				gui.updateScreen();
-				Thread.sleep(10);
-			}
-		} catch (Exception error) {
-			error.printStackTrace();		
 		}
 	}
 
@@ -215,7 +198,7 @@ public class Game {
 
 		loginButton.takeFocus();
 		
-		manageWindow(window);
+		gui.addWindowAndWait(window);
 	}
 
 	private static void showLogin() {
