@@ -246,7 +246,7 @@ public class GameCombat {
 		if (remainingInWave <= 0 && swimmingFishes.isEmpty()) {
 			// if the wave is done, move to next wave
 			wave++;
-			remainingInWave = STARTING_WAVE_FISH_COUNT + WAVE_FISH_INCREMENT * wave;
+			remainingInWave = STARTING_WAVE_FISH_COUNT + WAVE_FISH_INCREMENT * (wave - 1);
 			secPerChar = Math.max(0.1, STARTING_FISH_SPEED - ((wave - 1) * FISH_SPEED_INCREMENT));
 			return true;
 		}
