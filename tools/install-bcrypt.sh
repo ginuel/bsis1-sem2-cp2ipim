@@ -1,5 +1,9 @@
 #!/bin/bash
 
+REPO_DIR=$(git rev-parse --show-toplevel)
+
+cd "$REPO_DIR"
+
 # 1. Create the lib directory if it doesn't exist
 mkdir -p lib
 

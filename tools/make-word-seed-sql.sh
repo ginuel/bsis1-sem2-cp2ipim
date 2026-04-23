@@ -1,5 +1,9 @@
 #!/bin/bash
 
+REPO_DIR=$(git rev-parse --show-toplevel)
+
+cd "$REPO_DIR"
+
 # Download words
 URL="https://raw.githubusercontent.com/first20hours/google-10000-english/master/google-10000-english-no-swears.txt"
 echo "Downloading common English words..."

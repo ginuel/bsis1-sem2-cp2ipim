@@ -1,5 +1,9 @@
 #!/bin/bash
 
+REPO_DIR=$(git rev-parse --show-toplevel)
+
+cd "$REPO_DIR"
+
 VERSION=3.5.7
 JAR_NAME="mariadb-java-client-$VERSION.jar"
 DIR="lib"

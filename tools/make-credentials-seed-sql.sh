@@ -1,5 +1,9 @@
 #!/bin/bash
 
+REPO_DIR=$(git rev-parse --show-toplevel)
+
+cd "$REPO_DIR"
+
 # 1. Filter for words that:
 #    - Start with a letter: ^[A-Za-z]
 #    - Are only alphanumeric: [A-Za-z0-9]*$

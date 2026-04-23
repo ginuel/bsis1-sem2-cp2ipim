@@ -1,5 +1,9 @@
 #!/bin/bash
 
+REPO_DIR=$(git rev-parse --show-toplevel)
+
+cd "$REPO_DIR"
+
 echo "=== Starting normally ==="
 pkill mariadbd 
 mariadbd-safe &
