@@ -49,7 +49,7 @@ sudo mariadb -u root --socket=/run/mysqld/mysqld.sock <<EOF
 FLUSH PRIVILEGES;
 CREATE DATABASE IF NOT EXISTS fishdadb;
 -- Fix for Java: Use native password plugin with empty string
-ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('root');
+ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('');
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 EOF
