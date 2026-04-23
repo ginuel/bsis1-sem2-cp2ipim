@@ -1,58 +1,71 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/bin/bash
 
-echo "=== Killing all MariaDB processes ==="
-pkill -9 mariadbd
-pkill -9 mariadb-safe
-pkill -9 mysqld
-sleep 2
+# Exit on any error
+set -e
 
-echo "=== Removing MariaDB package ==="
-apt remove --purge mariadb -y
+echo "=== NUCLEAR UNINSTALL: Removing all MariaDB traces ==="
+# Stop services and kill processes
+sudo service mysql stop || true
+sudo pkill -9 mariadbd || true
+sudo pkill -9 mysqld || true
 
-echo "=== Nuking ALL data and configs ==="
-rm -rf $PREFIX/var/lib/mysql
-rm -rf $PREFIX/etc/my.cnf.d
-rm -f $PREFIX/etc/my.cnf
-rm -f $PREFIX/tmp/mariadb*
-rm -f $PREFIX/tmp/mysqld*
-rm -f $PREFIX/var/run/mariadbd.pid
-rm -f $HOME/.mysql_history
-rm -f $HOME/.mariadb_history
+# Purge packages (removes configs and binaries)
+sudo apt purge -y mariadb-server mariadb-client mariadb-common
+sudo apt autoremove -y
+sudo apt autoclean
 
-echo "=== Reinstalling MariaDB ==="
-pkg update
-pkg install mariadb php -y
+# Delete remaining directories manually to ensure a fresh start
+sudo rm -rf /var/lib/mysql
+sudo rm -rf /etc/mysql
+sudo rm -rf /run/mysqld
+sudo rm -rf /var/log/mysql
 
-echo "=== Initializing database ==="
-mariadb-install-db \
-  --auth-root-authentication-method=normal \
-  --skip-test-db \
-  --user=$(whoami) \
-  --basedir=$PREFIX \
-  --datadir=$PREFIX/var/lib/mysql
+echo "=== REINSTALLING: MariaDB and Audio Dependencies ==="
+sudo apt update
+# Reinstalling MariaDB + PHP + Audio libraries needed for Java Clip class
+sudo apt install -y mariadb-server php-cli libasound2t64 libasound2-plugins alsa-utils
 
-echo "=== Starting with no auth check ==="
-mariadbd-safe --skip-grant-tables --skip-networking &
+echo "=== Fixing Directory Structure ==="
+sudo mkdir -p /etc/mysql /var/lib/mysql /run/mysqld
+sudo chown -R mysql:mysql /var/lib/mysql /run/mysqld
+sudo chmod 755 /run/mysqld
 
-sleep 3
+echo "=== Initializing Database (Force Fresh) ==="
+sudo mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
 
-echo "=== Resetting root user ==="
-mariadb -u root <<'EOF'
+echo "=== Starting temporary daemon for configuration ==="
+SAFE_BIN=$(which mariadbd-safe || which mysqld_safe)
+sudo $SAFE_BIN --skip-grant-tables --skip-networking > /dev/null 2>&1 &
+
+echo "Waiting for socket..."
+COUNTER=0
+while [ ! -S /run/mysqld/mysqld.sock ] && [ $COUNTER -lt 20 ]; do
+  sleep 1
+  let COUNTER=COUNTER+1
+done
+
+echo "=== Resetting root user (EMPTY PASSWORD) ==="
+sudo mariadb -u root --socket=/run/mysqld/mysqld.sock <<EOF
 FLUSH PRIVILEGES;
-ALTER USER 'root'@'localhost' IDENTIFIED BY '';
+CREATE DATABASE IF NOT EXISTS fishdadb;
+-- Fix for Java: Use native password plugin with empty string
+ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('root');
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
-EXIT;
 EOF
 
-echo "=== Restarting normally ==="
-pkill mariadbd
+echo "=== Final Restart ==="
+sudo pkill -9 mariadbd || true
+sudo pkill -9 mysqld || true
 sleep 2
-mariadbd-safe &
 
-sleep 2
+# WSL specific service start
+sudo service mysql start
+
+# CRITICAL: Fix permissions so Java/PHP can access the socket without sudo
+sudo chmod 777 /run/mysqld/mysqld.sock
+
 echo ""
 echo "=== DONE ==="
-echo "Login with: mariadb -u root"
-echo "(no password required)"
-
+echo "MariaDB has been completely uninstalled and reinstalled."
+echo "Java Config: User=root, Pass=(empty), Host=127.0.0.1"
