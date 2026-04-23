@@ -21,83 +21,11 @@ public class GameMap {
 	private static int pondCount = 3;
 	private static String feedback = "";
 	private static List<Location> locations = new ArrayList<>();
-	// private static boolean isRunning;
-	// private static Screen screen;
-	// private static TextGraphics graphics;
 
-	// public static Game.State start(int userID) {
-	// 	screen = GameUtil.startScreen(); 
-	// 	graphics = screen.newTextGraphics();
-	//
-	// 	syncFromDatabase(userID); 
-	//
-	// 	isRunning = true;
-	//
-	// 	try {
-	// 		while (isRunning) {
-	// 			screen.clear();
-	// 			draw(graphics);
-	// 			screen.refresh();
-	//
-	// 			KeyStroke key = screen.readInput();
-	//
-	// 			if (key.getKeyType() == KeyType.Escape) {
-	// 				saveUserPosition(userID);
-	// 				isRunning = false; 
-	// 			} else if (key.getKeyType() == KeyType.Enter) {
-	// 				Location loc = getLocation(playerCol, playerRow);
-	// 				if (loc == null) return;
-	//
-	// 				if (loc.isLocked) {
-	// 					if (goldCount >= loc.goldCost) unlockPond(loc, userID);
-	// 					return;
-	// 				}
-	//
-	// 				saveUserPosition(userID);
-	//
-	// 				// Switch based on the Game.State assigned to the location
-	// 				return loc.targetState;
-	// 			} else {
-	// 				handleMovement(key);
-	// 			}
-	// 		}
-	// 	} catch (Exception e) { 
-	// 		e.printStackTrace(); 
-	// 	} finally {
-	// 		// This restores the terminal so Game.java can use standard I/O
-	// 		GameUtil.stopScreen();
-	// 	}
-	// }
-	//
 	public static int getGoldCount() {
 		return goldCount;
 	}
 
-	// public static Location handleSelection(int userID) {
-	// 	Location location = getLocation(playerCol, playerRow);
-	// 	if (location == null) {
-	// 		return null;
-	// 	}
-	//
-	// 	if (!location.owned) {
-	// 		if (goldCount >= location.goldCost) {
-	// 			unlockPond(location, userID);
-	// 		} else {
-	// 			feedback = "Insufficient gold to unlock pond!";
-	// 		}
-	// 		return null;
-	// 	}
-	//
-	// 	if (location.pondID != -1) {
-	// 		feedback = "You've entered a pond!";
-	// 	} else {
-	// 		feedback = "You're entering " + location.description + "!";
-	// 	}
-	// 	saveUserPositionAndGold(userID);
-	//
-	// 	return location;
-	// }
-	//
 	public static void handleMovement(KeyStroke key) {
 		switch (key.getKeyType()) {
 			case ArrowUp:
@@ -254,28 +182,6 @@ public class GameMap {
 			error.printStackTrace(); 
 		}
 	}
-	//
-	// private static void draw(TextGraphics graphics) {
-	// 	graphics.setForegroundColor(TextColor.ANSI.YELLOW_BRIGHT);
-	// 	graphics.putString(2, 0, "Gold: " + goldCount + " | [ESC] Menu");
-	// 	for (int r = 0; r < NUM_ROWS; r++) {
-	// 		for (int c = 0; c < NUM_COLS; c++) {
-	// 			int sr = r + 2, sc = c * 2 + 2;
-	// 			Location loc = getLocation(c, r);
-	// 			if (r == playerRow && c == playerCol) {
-	// 				graphics.setForegroundColor(TextColor.ANSI.YELLOW);
-	// 				graphics.putString(sc, sr, "@");
-	// 				if (loc != null) graphics.putString(2, 1, loc.isLocked ? "LOCKED: " + loc.description : "Enter " + loc.description);
-	// 			} else if (loc != null) {
-	// 				graphics.setForegroundColor(loc.isLocked ? TextColor.ANSI.RED : loc.color);
-	// 				graphics.putString(sc, sr, loc.symbol);
-	// 			} else {
-	// 				graphics.setForegroundColor(TextColor.ANSI.WHITE);
-	// 				graphics.putString(sc, sr, ".");
-	// 			}
-	// 		}
-	// 	}
-	// }
 
 	public static Location getLocation(int c, int r) {
 		for (Location l : locations) {

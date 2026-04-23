@@ -6,12 +6,7 @@ import com.googlecode.lanterna.gui2.table.TableModel;
 public class GameLeaderboards {
 	
 	private static final List<String> SCORE_CATEGORIES = List.of("WPM", "CHARS", "GOLD", "KILLS", "WAVES", "TIME");
-	
 
-
-	// public static void main(String[] args) {
-	// 	updateTable("WPM");
-	// }
 
 	public static void updateTable(Table<String> table, String category) {
 		TableModel<String> model = new TableModel<>("RANK", "PLAYER", category);
@@ -28,14 +23,15 @@ public class GameLeaderboards {
 			FROM (
 				SELECT 
 					UserName,
-					ROUND((s.CharsTyped / 5.0) / (NULLIF(s.SurvivalTime, 0) / 60.0), 2) AS WPM,
-					s.CharsTyped as CHARS,
-					s.GoldEarned as GOLD,
-					s.KillCount as KILLS,
-					s.Waves as WAVES,
-					s.SurvivalTime as TIME
+					MAX(ROUND((s.CharsTyped / 5.0) / (NULLIF(s.SurvivalTime, 0) / 60.0), 2)) AS WPM,
+					MAX(s.CharsTyped) as CHARS,
+					MAX(s.GoldEarned) as GOLD,
+					MAX(s.KillCount) as KILLS,
+					MAX(s.Waves) as WAVES,
+					MAX(s.SurvivalTime) as TIME
 				FROM ScorePerGame s
 				JOIN UserCredentials uc ON s.UserID = uc.UserID
+				GROUP BY UserName	
 			) AS BaseData
 			ORDER BY %s DESC
 			LIMIT 100;
@@ -49,7 +45,6 @@ public class GameLeaderboards {
 				String rank = rs.getString("Rank");
 				String name = rs.getString("UserName");
 				String score = rs.getString("Score");
-				// System.out.printf("%s, %s, %s\n", rank, name, score);
         model.addRow(rank, name, score);
 			}
 		} catch (Exception error) {

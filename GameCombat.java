@@ -15,10 +15,10 @@ public class GameCombat {
 	private static int MIN_FISH_GAP = 3;
 	private static int FULLSCREEN_WIDTH = STICKMAN_COL + STICKMAN_WIDTH + LANE_WIDTH + RIGHT_MARGIN;
 
-	private static float STARTING_FISH_SPEED = 2.0f; // secs per char
-	private static float FISH_SPEED_INCREMENT = 0.25f; // secs per char
-	private static int STARTING_WAVE_FISH_COUNT = 25;
-	private static int WAVE_FISH_INCREMENT = 25;
+	private static float STARTING_FISH_SPEED = 1f; // secs per char
+	private static float FISH_SPEED_INCREMENT = 0.1f; // secs per char
+	private static int STARTING_WAVE_FISH_COUNT = 5;
+	private static int WAVE_FISH_INCREMENT = 10;
 
 	private static int screenWidth;
 	private static int screenHeight;
@@ -222,7 +222,7 @@ public class GameCombat {
 		kills = 0;
 		totalChars = 0;
 		wave = 1;
-		remainingInWave = 25;
+		remainingInWave = STARTING_WAVE_FISH_COUNT;
 		secPerChar = STARTING_FISH_SPEED;
 
 
@@ -401,22 +401,6 @@ public class GameCombat {
 
 		return isDead;
 	} 
-
-	public static void start(Screen screen, int userID, int pondID) {
-		setFullscreenWidth(screen);
-		syncFromDatabase(pondID);
-		resetCombat();
-
-		boolean isDead = false;
-		try {
-			while (!isDead) {
-				isDead = updateCombat(userID, pondID);
-			}
-		} catch (Exception error) {
-			error.printStackTrace();
-		}
-
-	}
 
 	// Persists per-fish kill counts
 	private static void updateDiscoveredFishes(int userID, int fishID) {
