@@ -1,5 +1,19 @@
 #!/bin/bash
 
+REPO_DIR=$(git rev-parse --show-toplevel)
+
+cd "$REPO_DIR"
+
+# --- 1. Load config.properties ---
+CONFIG="config.properties"
+
+# Function to get property values
+get_prop() {
+    grep "^${1}=" "$CONFIG" | cut -d'=' -f2 | tr -d '\r'
+}
+
+DB_PASS=$(get_prop "db.password")
+
 # Exit on any error
 set -e
 
@@ -49,7 +63,7 @@ sudo mariadb -u root --socket=/run/mysqld/mysqld.sock <<EOF
 FLUSH PRIVILEGES;
 CREATE DATABASE IF NOT EXISTS fishdadb;
 -- Fix for Java: Use native password plugin with empty string
-ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('');
+ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('$DB_PASS');
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 EOF
@@ -68,4 +82,6 @@ sudo chmod 777 /run/mysqld/mysqld.sock
 echo ""
 echo "=== DONE ==="
 echo "MariaDB has been completely uninstalled and reinstalled."
-echo "Java Config: User=root, Pass=root, Host=127.0.0.1"
+echo "Java Config: User=root, Pass='$DB_PASS', Host=127.0.0.1"
+
+./tools/run-mariadb.sh GameDatabase

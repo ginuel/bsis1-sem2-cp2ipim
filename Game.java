@@ -4,12 +4,10 @@ import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
 import com.googlecode.lanterna.*;
-import com.googlecode.lanterna.*;
 import com.googlecode.lanterna.gui2.*;
 import com.googlecode.lanterna.gui2.dialogs.*;
 import org.mindrot.jbcrypt.BCrypt;
 
-import java.security.MessageDigest;
 import java.sql.*;
 import java.util.*;
 import com.googlecode.lanterna.gui2.table.Table;
@@ -31,13 +29,6 @@ public class Game {
 	public static void main(String[] args) {
 		// Do this upon exit
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			if (screen != null) {
-				try {
-					screen.stopScreen();
-				} catch (Exception error2) {
-					error2.printStackTrace();
-				}
-			}
 			GameDatabase.save();
 			GameDatabase.close();
 			GameSound.close();
