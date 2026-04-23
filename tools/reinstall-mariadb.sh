@@ -68,4 +68,4 @@ sudo chmod 777 /run/mysqld/mysqld.sock
 echo ""
 echo "=== DONE ==="
 echo "MariaDB has been completely uninstalled and reinstalled."
-echo "Java Config: User=root, Pass=(empty), Host=127.0.0.1"
+echo "Java Config: User=root, Pass=root, Host=127.0.0.1"

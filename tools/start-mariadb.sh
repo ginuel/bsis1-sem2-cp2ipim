@@ -1,5 +1,9 @@
 #!/bin/bash
 
+REPO_DIR=$(git rev-parse --show-toplevel)
+
+cd "$REPO_DIR"
+
 echo "=== Starting MariaDB normally ==="
 sudo service mysql start
 
@@ -21,4 +25,4 @@ if command -v powershell.exe >/dev/null; then
 fi
 
 echo "=== Starting PHP Server on port $port ==="
-php -S localhost:$port tools/index.php
+php -S localhost:$port "tools/index.php"

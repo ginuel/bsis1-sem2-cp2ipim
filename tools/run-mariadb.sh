@@ -1,5 +1,9 @@
 #!/bin/bash
 
+REPO_DIR=$(git rev-parse --show-toplevel)
+
+cd "$REPO_DIR"
+
 # --- 1. Load config.properties ---
 CONFIG="config.properties"
 
@@ -25,17 +29,21 @@ echo "MariaDB is ready!"
 
 # --- 3. Initialize Database ---
 # Note: We use the values extracted above to run the SQL files
-if [ -f "fishdadb.sql" ]; then
     echo "Seeding database: $DB_NAME..."
     # Combine the SQL files and pipe them into the mariadb client
-    (cat fishdadb.sql; cat seed-words.sql) | $DB_BIN -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME"
+    (
+			cat down.sql
+			cat up.sql
+			cat seed.sql
+			cat seed-words.sql
+		) | $DB_BIN -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME"
     
     # Run the Java Seeder
-    ./tools/run.sh GameSeeder
+    bash ./tools/run.sh GameSeeder
 else
     echo "No SQL files found, skipping initialization."
 fi
 
 # --- 4. Run the Main Application ---
 echo "Starting application..."
-./tools/run.sh "$@"
+./tools/run.sh" "$@"
