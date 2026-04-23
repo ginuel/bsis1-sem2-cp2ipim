@@ -12,6 +12,6 @@ mariadb -hlocalhost -P3306 -uroot -proot < <(
 	cat seed.sql
 	cat seed-words.sql
 )
-./tools/run.sh GameSeeder
+./tools/termux/run.sh GameSeeder
 
-./tools/run.sh "$@"
+./tools/termux/run.sh "$@"
