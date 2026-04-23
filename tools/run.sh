@@ -36,5 +36,3 @@ echo -e "${NC}"
 
 # 3. Run
 java -cp "bin:lib/*:." $class
-
-
