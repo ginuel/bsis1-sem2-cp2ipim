@@ -73,13 +73,18 @@ public class GameDatabase {
 		try {
 			String backupFilePath = props.getProperty("db.backup-path");
 			// This creates a special command that tells the computer's database system to export all its information.
-			String dbCommand = String.format("%s -h%s -P%s -u%s -p%s %s",
+			String password = props.getProperty("db.password");
+			if (!password.isEmpty()) {
+				password = "-p" + password;
+			}
+			String dbCommand = String.format("%s -h%s -P%s -u%s %s %s > %s",
 					props.getProperty("db.mysql-dump-path"),
 					props.getProperty("db.host"),
 					props.getProperty("db.port"),
 					props.getProperty("db.user"),
-					props.getProperty("db.password"),
-					props.getProperty("db.name"));
+					password,
+					props.getProperty("db.name"),
+					backupFilePath);
 
 			// This makes sure the folder for the backup exists on the computer; if it doesn't, it creates it.
 			Files.createDirectories(Paths.get(backupFilePath).getParent());
@@ -90,8 +95,8 @@ public class GameDatabase {
 
 			ProcessBuilder pb = new ProcessBuilder(command);
 			// This tells the computer to take the information coming out of the database and write it into the backup file.
-			pb.redirectOutput(new java.io.File(backupFilePath));
-			pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+			// pb.redirectOutput(new java.io.File(backupFilePath));
+			// pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
 			Process process = pb.start();
 			// This waits for the saving process to finish and checks if there were any errors.
@@ -125,13 +130,18 @@ public class GameDatabase {
 				return false;
 			}
 
-			String dbCommand = String.format("%s -h%s -P%s -u%s -p%s %s",
+			String password = props.getProperty("db.password");
+			if (!password.isBlank()) {
+				password = "-p" + password;
+			}
+			String dbCommand = String.format("%s -h%s -P%s -u%s %s %s < %s",
 					props.getProperty("db.mysql-path"),
 					props.getProperty("db.host"),
 					props.getProperty("db.port"),
 					props.getProperty("db.user"),
-					props.getProperty("db.password"),
-					props.getProperty("db.name"));
+					password,
+					props.getProperty("db.name"),
+					backupFilePath);
 
 			// Build command list from shell property + the dbCommand
 			java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(props.getProperty("db.shell").split(" ")));
@@ -139,8 +149,8 @@ public class GameDatabase {
 
 			ProcessBuilder pb = new ProcessBuilder(command);
 			// This feeds the information from the backup file back into the database system.
-			pb.redirectInput(backupFile);
-			pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+			// pb.redirectInput(backupFile);
+			// pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
 			Process process = pb.start();
 			boolean isSuccessful = (process.waitFor() == 0);

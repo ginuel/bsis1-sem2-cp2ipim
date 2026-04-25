@@ -51,16 +51,12 @@ public class GameSound {
 			}
 			
 			// This stops the sound if it is already playing so it can start over from the beginning.
-			if (attackSfx.isRunning()) { 
-				attackSfx.stop();
-			}
+			attackSfx.stop();
 			// This rewinds the sound to the very start.
-			attackSfx.setFramePosition(0); // Faster than microsecond position
+			attackSfx.setFramePosition(0);
 			attackSfx.start();
 			
 		// This keeps the game from closing if the sound fails to play correctly.
-		} catch (Exception error) {
-			System.err.println("Audio Error: " + error.getMessage());
-		}
+		} catch (Exception error) {}
 	}
 }

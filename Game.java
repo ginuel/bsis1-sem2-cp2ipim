@@ -27,6 +27,7 @@ public class Game {
 	// This handles the buttons and windows the user interacts with
 	private static MultiWindowTextGUI gui;
 	private static Screen screen;
+	private static Terminal terminal;
 	// This saves the identification number of the person currently playing.
 	private static int userID = -1;
 
@@ -41,14 +42,14 @@ public class Game {
 	public static void main(String[] args) {
 		// This part makes sure the game saves and closes correctly when you quit.
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			GameSound.close();
 			GameDatabase.save();
 			GameDatabase.close();
-			GameSound.close();
 		}));
 
 		try {
 			// This starts the display so the user can see the game.
-			Terminal terminal = new DefaultTerminalFactory().createTerminal();
+			terminal = new DefaultTerminalFactory().createTerminal();
 			screen = new TerminalScreen(terminal);
 			screen.startScreen();
 			gui = new MultiWindowTextGUI(screen);
@@ -107,6 +108,8 @@ public class Game {
 			error.printStackTrace();
 		} finally {
 			// This completely turns off the program.
+			try {
+			} catch (Exception error) {}
 			System.exit(0);
 		}
 	}
