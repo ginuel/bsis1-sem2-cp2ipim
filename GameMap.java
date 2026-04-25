@@ -1,18 +1,16 @@
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.graphics.TextGraphics;
-import com.googlecode.lanterna.input.KeyStroke;
-import com.googlecode.lanterna.input.KeyType;
-import com.googlecode.lanterna.screen.Screen;
-import com.googlecode.lanterna.screen.TerminalScreen;
+import com.googlecode.lanterna.input.*;
+import com.googlecode.lanterna.screen.*;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.*;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class GameMap {
 	private static int mapWidth = 7;
 	private static int mapHeight = 7;
+	// This sets the starting "Home" position where the player begins their journey.
 	private static int homeRow = 3;
 	private static int homeCol = 3;
 	private static int playerRow = homeRow; 
@@ -26,6 +24,7 @@ public class GameMap {
 		return goldCount;
 	}
 
+	// This translates the arrow keys pressed on the keyboard into movement for the player on the map.
 	public static void handleMovement(KeyStroke key) {
 		switch (key.getKeyType()) {
 			case ArrowUp:
@@ -63,6 +62,7 @@ public class GameMap {
 		return getLocation(playerCol, playerRow);
 	}
 
+	// This retrieves the player's last known location and total gold from the saved game records.
 	public static void syncFromDatabase(int userID) {
 		Connection conn = GameDatabase.getConnection();
 
@@ -94,7 +94,7 @@ public class GameMap {
 		}
 
 		locations.clear();
-		// UI Navigation points mapped to Game.State
+		// This adds specific landmarks to the map, like the library of creatures and the high score boards.
 		locations.add(new Location(1, 5, "B", TextColor.ANSI.GREEN, true, "Bestiary", null, 0, -1, Game.State.BESTIARY));
 		locations.add(new Location(5, 5, "L", TextColor.ANSI.MAGENTA, true, "Leaderboards", null, 0, -1, Game.State.LEADERBOARDS));
 		locations.add(new Location(homeCol, homeRow, "H", TextColor.ANSI.WHITE, false, "Home", null, 0, -1, Game.State.MENU));
@@ -123,6 +123,7 @@ public class GameMap {
 				String symbol = rs.getString("PondSymbol");
 				TextColor color = TextColor.ANSI.BLUE;
 				int cost = rs.getInt("PondCost");
+				// This checks if the player has already bought this fishing area or if it was free to begin with.
 				boolean owned = (cost == 0) || (rs.getObject("UserPondID") != null);
 				String pondName = rs.getString("PondName");
 				String pondType = rs.getString("PondType");
@@ -134,6 +135,7 @@ public class GameMap {
 				pondCount++;
 			}
 
+			// This automatically makes the map wider if there are many fishing ponds to display.
 			mapWidth = Math.max(7, 2 * pondCount + 1);
 			mapHeight = 7;
 		} catch (Exception error) { 
@@ -145,6 +147,7 @@ public class GameMap {
 		return locations;
 	}
 
+	// This records exactly where the player is standing and how much money they have so they don't lose progress.
 	public static void saveUserPositionAndGold(int userID) {
 		String sql = """
 			UPDATE Users 
@@ -191,8 +194,9 @@ public class GameMap {
 		}
 		return null;
 	}
-	//
+
 	private static void move(int col, int row) {
+		// This makes sure the player cannot walk off the edge of the map.
 		if (playerRow + row >= 0 
 				&& playerRow + row < mapHeight 
 				&& playerCol + col >= 0 
@@ -202,6 +206,7 @@ public class GameMap {
 		}
 	}
 
+	// This is a template that stores all the details for a specific spot on the map, like its color and cost.
 	public static class Location {
 		int col, row, goldCost, pondID;
 		String symbol, description, pondType;

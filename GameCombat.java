@@ -15,6 +15,7 @@ public class GameCombat {
 	private static int MIN_FISH_GAP = 3;
 	private static int FULLSCREEN_WIDTH = STICKMAN_COL + STICKMAN_WIDTH + LANE_WIDTH + RIGHT_MARGIN;
 
+	// This sets how many seconds a fish takes to move one space; as the game gets harder, this number gets smaller.
 	private static float STARTING_FISH_SPEED = 1f; // secs per char
 	private static float FISH_SPEED_INCREMENT = 0.1f; // secs per char
 	private static int STARTING_WAVE_FISH_COUNT = 5;
@@ -47,7 +48,7 @@ public class GameCombat {
 
 	private static ActiveFish lastFish = null;
 
-	// to store fish data retrieved from database
+	// This is a template that stores the info of a fish, including its appearance, rarity, and how much gold it is worth.
 	public static class FishType {
 		int id, coins;
 		String name, rarity, pondType, head, tail;
@@ -158,6 +159,7 @@ public class GameCombat {
 		return luminance < 50; // Returns true if the color is "dark"
 	}
 
+	// This looks at the database to find which fish species live in this specific pond and loads a list of words for the player to type.
 	public static void syncFromDatabase(int pondID) {
 		dictionary = new ArrayList<>();
 		fishSpecies = new ArrayList<>();
@@ -242,6 +244,7 @@ public class GameCombat {
 		isCombat = false;
 	}
 
+	// This checks if all fish in the current level are gone; if so, it starts a new, harder level with more fish and faster speeds.
 	public static boolean updateWave() {
 		if (remainingInWave <= 0 && swimmingFishes.isEmpty()) {
 			// if the wave is done, move to next wave
@@ -259,6 +262,7 @@ public class GameCombat {
 		Iterator<ActiveFish> it = swimmingFishes.iterator();
 		while (it.hasNext()) {
 			ActiveFish f = it.next();
+			// This checks if the key you just pressed matches the next letter of the fish's word.
 			if (f.word.charAt(f.lettersTyped) == Character.toUpperCase(typed)) {
 				// if you typed the next letter
 				f.lettersTyped += 1;
@@ -302,7 +306,7 @@ public class GameCombat {
 
 	public static boolean moveFishesAndCheckStickmanCollision(int userID, int pondID) {
 		for (ActiveFish f : swimmingFishes) {
-			// check stickman collision
+			// This checks if a fish has reached the player's position on the left side of the screen, which ends the game.
 			if (f.x < STICKMAN_COL + STICKMAN_WIDTH) { 
 				// if stickman gets touch, end game
 				saveResults(userID, pondID, gold, kills, totalChars, startTime, wave);
@@ -317,6 +321,7 @@ public class GameCombat {
 		return false;
 	}
 
+	// This logic decides when to add a new fish to the screen, making sure there is enough space so they don't overlap.
 	public static FishType getRandomFishType() {
 		FishType selected = null;
 
@@ -394,6 +399,7 @@ public class GameCombat {
 		sec = Math.max(1, (now - startTime - pausedTime) / 1000);
 
 		if (isCombat) {
+			// This calculates "Words Per Minute" by seeing how many groups of five letters the player typed per minute of active gameplay.
 			wpm = (totalChars / 5.0) / (Math.max(1, (now - combatStart + combatTime) / 1000) / 60.0);
 		} else {
 			wpm = (totalChars / 5.0) / (Math.max(1, combatTime / 1000) / 60.0);
@@ -402,7 +408,7 @@ public class GameCombat {
 		return isDead;
 	} 
 
-	// Persists per-fish kill counts
+	// This updates the player's permanent record to show they have caught another one of this specific type of fish.
 	private static void updateDiscoveredFishes(int userID, int fishID) {
 		String sql = """
 			INSERT INTO 
@@ -422,6 +428,7 @@ public class GameCombat {
 		}
 	}
 
+	// This saves the final score, gold earned, and survival time to the database once the game is over.
 	private static void saveResults(int uid, int pid, int g, int k, int c, long start, int w) {
 		String sql = """
 			INSERT INTO 
