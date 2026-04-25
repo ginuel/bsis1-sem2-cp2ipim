@@ -1,33 +1,45 @@
-import com.googlecode.lanterna.screen.Screen;
+// Lanterna - Terminal and Screen Management
+import com.googlecode.lanterna.*;
 import com.googlecode.lanterna.graphics.TextGraphics;
+import com.googlecode.lanterna.input.*;
+import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
-import com.googlecode.lanterna.*;
+
+// Lanterna - GUI Components
 import com.googlecode.lanterna.gui2.*;
 import com.googlecode.lanterna.gui2.dialogs.*;
-import org.mindrot.jbcrypt.BCrypt;
-
-import java.sql.*;
-import java.util.*;
 import com.googlecode.lanterna.gui2.table.Table;
-import com.googlecode.lanterna.input.*;
+
+// Security and Database
+import org.mindrot.jbcrypt.BCrypt;
+import java.sql.*;
+
+// Java Utilities
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Game {
+	// This is a list of all the different screens or parts the game can show.
 	public enum State {BANNER, AUTH, LOGIN, REGISTER, MENU, MAP, BESTIARY, LEADERBOARDS, BACKUP, COMBAT, END};
 
+	// This handles the buttons and windows the user interacts with
 	private static MultiWindowTextGUI gui;
 	private static Screen screen;
+	// This saves the identification number of the person currently playing.
 	private static int userID = -1;
 
+	// This keeps track of which screen the user is looking at right now
 	private static State state;
+	// This remembers the previous screen with either Menu or Map so the game can go back to it later.
 	private static State lastMenuState;
 	
+	// This stores the ID for the specific Pond the player is visiting.
 	private static int pondID = -1;
 
 	public static void main(String[] args) {
-		// Do this upon exit
+		// This part makes sure the game saves and closes correctly when you quit.
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 			GameDatabase.save();
 			GameDatabase.close();
@@ -35,15 +47,19 @@ public class Game {
 		}));
 
 		try {
+			// This starts the display so the user can see the game.
 			Terminal terminal = new DefaultTerminalFactory().createTerminal();
 			screen = new TerminalScreen(terminal);
 			screen.startScreen();
 			gui = new MultiWindowTextGUI(screen);
 
+			// This tells the game to show the starting image first.
 			state = State.BANNER;
 
+			// This keeps the game running until the user chooses to stop.
 			while (state != State.END) {
 				try {
+					// This looks at which part of the game should be on the screen right now.
 					switch (state) {
 						case BANNER:
 							showBanner();
@@ -90,19 +106,23 @@ public class Game {
 		} catch (Exception error) {
 			error.printStackTrace();
 		} finally {
+			// This completely turns off the program.
 			System.exit(0);
 		}
 	}
 
 	private static void showBanner() {
+		// This creates a new rectangular box on the screen to hold information.
 		BasicWindow window = new BasicWindow("FishdaTyper");
 		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+		// This makes the box appear in the middle of the screen.
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
 		window.setComponent(panel);
 
 		ProgressBar progressBar = new ProgressBar(0, 100, 10);
 		progressBar.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
 			
+		// This adds the large title art and welcome text to the box.
 		panel.addComponent(new Label("""
 			          <°)))><        <°)))><        <°)))><
 			
@@ -128,9 +148,11 @@ public class Game {
 
 		
 
+		// This tells the computer to perform other tasks in the background while the game stays open.
 		new Thread(() -> {
 
 			try {
+				// This makes the progress bar fill up slowly from start to finish.
 				for (int i = 0; i < 100; i++) {
 					progressBar.setValue(i);
 					gui.updateScreen();
@@ -141,9 +163,11 @@ public class Game {
 				error.printStackTrace();
 			} finally {
 				statusLabel.setText("Waiting for MariaDB...");
+				// This makes the game pause until the saved data is ready to be used.
 				GameDatabase.waitForMariaDB();
 				statusLabel.setText("Loading assets: attack sound effect...");
 				GameSound.playAttackSFX();
+				// This removes the welcome box from the screen so the game can start.
 				window.close();
 			}
 			
@@ -153,16 +177,20 @@ public class Game {
 	}
 
 	private static void showAuthMenu() {
+		// This creates a new box where the user can choose to log in or sign up.
 		BasicWindow window = new BasicWindow("Authentication");
 		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
 		window.setComponent(panel);
+		// This tells the computer to watch for when the user presses keys on the keyboard.
 		window.addWindowListener(new WindowListenerAdapter() {
 			@Override
 			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
 				KeyType keyType = keyStroke.getKeyType();
 
+				// This checks if the user pressed the Escape key to quit.
 				if (keyType == KeyType.Escape) {
+					// This shows a small box asking the user if they are sure they want to stop playing.
 					MessageDialogButton result = MessageDialog.showMessageDialog(gui, "Confirm Exit", "Are you sure you want to exit game?", MessageDialogButton.No, MessageDialogButton.Yes);
 					if (result == MessageDialogButton.Yes) {
 						state = State.END;
@@ -172,6 +200,7 @@ public class Game {
 			}
 		});
 
+		// This creates a clickable button that takes the user to the login screen.
 		Button loginButton = new Button("Login", () -> {
 			state = State.LOGIN;
 			window.close();
@@ -187,12 +216,15 @@ public class Game {
 			window.close();
 		}));
 
+		// This automatically highlights the login button so the user can select it immediately.
 		loginButton.takeFocus();
 		
+		// This puts the box on the screen and waits for the user to pick an option.
 		gui.addWindowAndWait(window);
 	}
 
 	private static void showLogin() {
+		// This creates a new window where the user can enter their name and secret code.
 		BasicWindow window = new BasicWindow("Login");
 		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
@@ -211,8 +243,10 @@ public class Game {
 		});
 
 		TextBox usernameBox = new TextBox();
+		// This creates a text box that hides the letters you type so others cannot see your password.
 		TextBox passwordBox = new TextBox().setMask('*');
 
+		//This organizes the labels and text boxes into two neat columns.
 		Panel gridPanel = new Panel(new GridLayout(2));
 		gridPanel.addComponent(new Label("Username"));
 		gridPanel.addComponent(usernameBox);
@@ -222,10 +256,12 @@ public class Game {
 			String username = usernameBox.getText();
 			String password = passwordBox.getText();
 
+			// This checks the database to see if the name and password match a saved user.
 			userID = GameAuth.login(username, password);
 			String feedback = GameAuth.getFeedback();
 			MessageDialog.showMessageDialog(gui, "Login", feedback, MessageDialogButton.OK);
 
+			// This checks if the login was successful.
 			if (userID != -1) {
 				state = State.MENU;
 			}
@@ -238,6 +274,7 @@ public class Game {
 
 		panel.addComponent(gridPanel);
 
+		// This places the typing cursor in the username box so the user can start typing right away.
 		usernameBox.takeFocus();
 		
 		gui.addWindowAndWait(window);
@@ -245,6 +282,7 @@ public class Game {
 	}
 
 	private static void showRegister() {
+		// This creates a new window where a person can create a new account.	
 		BasicWindow window = new BasicWindow("Register");
 		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
@@ -264,6 +302,7 @@ public class Game {
 
 		TextBox usernameBox = new TextBox();
 		TextBox passwordBox = new TextBox().setMask('*');
+		// This creates a second secret box to make sure the user typed their password correctly.
 		TextBox passwordRepeatedBox = new TextBox().setMask('*');
 
 		Panel gridPanel = new Panel(new GridLayout(2));
@@ -271,6 +310,7 @@ public class Game {
 		gridPanel.addComponent(usernameBox);
 		gridPanel.addComponent(new Label("Password"));
 		gridPanel.addComponent(passwordBox);
+		// This adds a text label to show the user where to re-type their password.
 		gridPanel.addComponent(new Label("Comfirm Password"));
 		gridPanel.addComponent(passwordRepeatedBox);
 
@@ -279,10 +319,13 @@ public class Game {
 			String password = passwordBox.getText();
 			String passwordRepeated = passwordRepeatedBox.getText();
 
+			// This tries to save the new name and password into the system.
 			userID = GameAuth.register(username, password, passwordRepeated);
+			// This gets a message from the system to tell the user if the sign-up worked or failed.
 			String feedback = GameAuth.getFeedback();
 			MessageDialog.showMessageDialog(gui, "Register", feedback, MessageDialogButton.OK);
 
+			// This checks if the new account was created successfully.
 			if (userID != -1) {
 				state = State.AUTH;
 			} 
@@ -296,17 +339,19 @@ public class Game {
 		
 		panel.addComponent(gridPanel);
 		
+		// This starts the typing cursor in the first box so the user can begin typing their name immediately.
 		usernameBox.takeFocus();
 		
 		gui.addWindowAndWait(window);
 	}
 	
 	private static void showMainMenu() {
-
+		// This creates the main window that shows the different game options.
 		BasicWindow window = new BasicWindow("Main Menu");
 		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
 		window.setComponent(panel);
+		// This checks if the user presses the Escape key to bring up the exit menu.
 		window.addWindowListener(new WindowListenerAdapter() {
 			@Override
 			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
@@ -322,12 +367,14 @@ public class Game {
 			}
 		});
 
+		// This creates a button that lets the user start the game and see the map.
 		Button playButton = new Button("Play", () -> {
 			state = State.MAP;
 			window.close();
 		});
 
 		panel.addComponent(playButton);
+		// This adds a button that lets the user see a list of all the fish or creatures, that he has discovered.
 		panel.addComponent(new Button("Bestiary", () -> {
 			state = State.BESTIARY;
 			window.close();
@@ -336,6 +383,7 @@ public class Game {
 			state = State.LEADERBOARDS;
 			window.close();
 		}));
+		// This adds a button to open a menu for making copies of game data.
 		panel.addComponent(new Button("Backup", () -> {
 			state = State.BACKUP;
 			window.close();
@@ -345,6 +393,7 @@ public class Game {
 			window.close();
 		}));
 
+		// This highlights the Play button first so the user can start playing quickly.
 		playButton.takeFocus();
 		
 		gui.addWindowAndWait(window);
@@ -352,6 +401,7 @@ public class Game {
 	
 
 	private static void showBackupMenu() {
+		// This creates a new window for the user to manage their saved game files.
 		BasicWindow window = new BasicWindow("Backup Menu");
 		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
@@ -361,6 +411,7 @@ public class Game {
 			public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
 				KeyType keyType = keyStroke.getKeyType();
 
+				// This closes the window if the user presses the Escape key on the keyboard.
 				if (keyType == KeyType.Escape) {
 					window.close();
 					return;
@@ -370,16 +421,20 @@ public class Game {
 
 		Button backButton = new Button("Back", window::close);
 
+		// This adds a button that writes the current game progress to a permanent file.
 		panel.addComponent(new Button("Save", () -> {
 			GameDatabase.save();
 			MessageDialog.showMessageDialog(gui, "Save", GameDatabase.getFeedback(), MessageDialogButton.OK);
 		}));
+		// This adds a button that brings back game progress from a previously saved file.
 		panel.addComponent(new Button("Load", () -> {
 			GameDatabase.load();
+			// This shows a message to tell the user if the loading process worked or failed.
 			MessageDialog.showMessageDialog(gui, "Load", GameDatabase.getFeedback(), MessageDialogButton.OK);
 		}));
 		panel.addComponent(backButton);
 
+		// This highlights the Back button so the user can easily select it.
 		backButton.takeFocus();
 		
 		gui.addWindowAndWait(window);
@@ -387,6 +442,7 @@ public class Game {
 	}
 
 	private static void showBestiary() {
+		// This creates a new window to show the list of fishes the player has found.
 		BasicWindow window = new BasicWindow("Bestiary");
 		Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
@@ -403,22 +459,30 @@ public class Game {
 			}
 		});
 		
+		// This creates a chart with four columns to organize the fish information.
 		Table<String> table = new Table<>("POND", "FISH", "RARITY", "KILLS"); 
+		// This fills the chart with the specific data saved for the person playing.
 		GameBestiary.updateTable(table, userID);
+		// This sets the chart to show ten lines of information at a time.
 		table.setVisibleRows(10);
 
+		// This creates a button that shuts this window when clicked.
 		Button backButton = new Button("Back", window::close);
 		
+		// This places the completed chart inside the window.
 		panel.addComponent(table);
 		panel.addComponent(backButton);
 		
 		backButton.takeFocus();
 		
+		// This shows the window and stops the rest of the game until the user finishes looking at it.
 		gui.addWindowAndWait(window);
 	}
 
 	private static void showLeaderboards() {
+		// This creates a new window that shows how players rank against each other.
 		BasicWindow window = new BasicWindow("Leaderboards");
+		// This sets up the window so that items are placed side by side from left to right.
 		Panel panel = new Panel(new LinearLayout(Direction.HORIZONTAL));
 		window.setHints(Arrays.asList(Window.Hint.CENTERED));
 		window.setComponent(panel);
@@ -434,19 +498,24 @@ public class Game {
 			}
 		});
 		
+		// This creates a chart with columns for the player rank, their name, and their score.
 		Table<String> table = new Table<>("RANK", "NAME", "STAT"); 
 		GameLeaderboards.updateTable(table, "WPM");
 		table.setVisibleRows(10);
 
+		// This creates a separate section to hold buttons stacked on top of each other.
 		Panel buttonsPanel = new Panel(new LinearLayout(Direction.VERTICAL));
 
+		// This goes through every available ranking group and makes a button for each one.
 		for (String category : GameLeaderboards.getCategories()) {
+			// This adds a button that changes the chart to show different types of scores when clicked.
 			buttonsPanel.addComponent(new Button(category, () -> GameLeaderboards.updateTable(table, category)));
 		}
 		Button backButton = new Button("Back", window::close);
 
 		buttonsPanel.addComponent(backButton);
 
+		// This places the score chart and the side buttons into the main window together.
 		panel.addComponent(table);
 		panel.addComponent(buttonsPanel);
 		
@@ -457,6 +526,7 @@ public class Game {
 
 	private static void showMap() {
 
+		// This gets the player's saved position and items from the database to start the map correctly.
 		GameMap.syncFromDatabase(userID);
 
 		Panel mapPanel = new Panel();
@@ -464,12 +534,14 @@ public class Game {
 		descriptionLabel.setPreferredSize(new TerminalSize(GameMap.getMapWidth() * 2 + 1, 3));
 		Label goldLabel = new Label("");
 
+		// This part of the code defines how to draw the world, the paths, and the player.
 		mapPanel.setRenderer(new ComponentRenderer<Panel>() {
 			@Override
 			public void drawComponent(TextGUIGraphics graphics, Panel component) {
 				graphics.setBackgroundColor(TextColor.ANSI.BLACK);
 				graphics.fill(' ');
 
+				// This goes through every square on the map to decide what to show there.
 				for (int row = 0; row < GameMap.getMapHeight(); row++) {
 					for (int col = 0; col < GameMap.getMapWidth(); col++) {
 						int colUI = col * 2 + 1;
@@ -496,6 +568,7 @@ public class Game {
 						if (GameMap.isPlayerIn(col, row)) {
 							// displau player
 							graphics.setForegroundColor(TextColor.ANSI.YELLOW);
+							// This draws the "@" symbol to represent where the player is currently standing.
 							graphics.putString(colUI, row, "@");
 							// display info about player's location
 							if (location != null) {
@@ -515,6 +588,7 @@ public class Game {
 					}
 				}
 				
+				// This updates the text on the screen to show how much money the player has.
 				goldLabel.setText("Balance: " + GameMap.getGoldCount() + "g");
 			}
 
@@ -541,6 +615,7 @@ public class Game {
 					state = State.MENU;
 					window.close();
 					return;
+				// This checks if the user pressed the Enter key to try to go into a location or buy a pond.
 				}	else if (keyType == KeyType.Enter) {
 					// if player selected a map location
 					GameMap.Location location = GameMap.getLocationAtPlayer();
@@ -563,6 +638,7 @@ public class Game {
 							MessageDialog.showMessageDialog(gui, "Map", "You've entered a pond!", MessageDialogButton.OK);
 							GameMap.saveUserPositionAndGold(userID);
 							pondID = location.pondID;
+							// This changes the game to show the combat screen.
 							state = State.COMBAT;
 							window.close();
 						}
@@ -579,7 +655,7 @@ public class Game {
 						} 
 					}
 				} else {
-					// if player moves
+					// This moves the player character around the map based on which arrow keys were pressed.
 					GameMap.handleMovement(keyStroke);
 				}
 			}
@@ -599,6 +675,7 @@ public class Game {
 		Label lastFishKilledLabel = new Label("");
 		Panel lastFishKilledPanel = new Panel(new LinearLayout(Direction.VERTICAL));
 
+		//This sets up the screen and loads the fishing information for this specific area.
 		GameCombat.setFullscreenWidth(screen);
 		GameCombat.syncFromDatabase(pondID);
 		GameCombat.resetCombat();
@@ -613,6 +690,7 @@ public class Game {
 		
 		lastFishKilledLabel.setPreferredSize(new TerminalSize(screenWidth, 2));
 
+		// This part of the code draws the fishing lanes, the player character, and the swimming fish.
 		combatPanel.setRenderer(new ComponentRenderer<Panel>() {
 			@Override
 			public void drawComponent(TextGUIGraphics graphics, Panel component) {
@@ -628,6 +706,7 @@ public class Game {
 
 				// Stickman
 				graphics.setForegroundColor(TextColor.ANSI.GREEN);
+				// This draws a simple stick figure to represent the player on the left side.
 				graphics.putString(stickmanCol, middleRow - 1, " [O] "); 
 				graphics.putString(stickmanCol, middleRow, "--|--"); 
 				graphics.putString(stickmanCol, middleRow + 1, " / \\ "); 
@@ -646,7 +725,7 @@ public class Game {
 						int wordX = fish.x + fish.type.head.length();
 						// print word
 						for (int i = 0; i < fish.word.length(); i++) {
-							// color the typed letters green, while untyped red
+							// This changes the color of the word to green for letters you typed correctly and red for letters you still need to type.
 							graphics.setForegroundColor(i < fish.lettersTyped ? TextColor.ANSI.GREEN : TextColor.ANSI.RED);
 							graphics.putString(wordX + i, row, "" + fish.word.charAt(i));
 						}
@@ -723,6 +802,7 @@ public class Game {
 					} else {
 						GameCombat.togglePause(false);
 					}
+				// This checks which letter the user typed on their keyboard to see if it matches a fish word.
 				} else if (keyType == KeyType.Character) {
 					char typed = keyStroke.getCharacter();
 					boolean hasKilledFish = GameCombat.handleCharacterInput(userID, typed);
@@ -745,6 +825,7 @@ public class Game {
 						continue;
 					}
 					
+					// This checks if the user has finished the current group of fish and is ready for the next set.
 					boolean isNextWave = GameCombat.updateWave();
 
 					if (isNextWave) {
@@ -755,6 +836,7 @@ public class Game {
 					}
 
 					synchronized (GameCombat.getSwimmingFishes()) {
+						// This moves the fish across the screen and checks if the game is over.
 						isDead = GameCombat.updateCombat(userID, pondID);
 					}
 
@@ -767,6 +849,7 @@ public class Game {
 			window.close();
 		});
 
+		// This begins the action so the fish start moving and the game timer starts.
 		combatThread.start();
 
 		panel.addComponent(lastFishKilledPanel);
