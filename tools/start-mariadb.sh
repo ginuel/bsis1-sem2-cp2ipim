@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the root directory
-REPO_DIR=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+REPO_DIR=$(git rev-parse --show-toplevel)
 cd "$REPO_DIR"
 
 # --- 1. Load config.properties ---
@@ -38,8 +38,6 @@ cd "$PMA_DIR" || exit
 # Use 'EOF' to prevent bash from expanding $cfg and $i
 # printf then handles the %s injections
 CONF_CONTENT=$(printf "$(cat << 'EOF'
-<?php
-$i = 1;
 $cfg['Servers'][$i]['auth_type'] = 'config';
 $cfg['Servers'][$i]['host'] = '%s';
 $cfg['Servers'][$i]['user'] = '%s';
