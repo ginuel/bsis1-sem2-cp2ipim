@@ -137,7 +137,7 @@ public class GameAuth {
 
 			// This checks if the search found a matching name in the records.
 			boolean usernameExists = rs.next();
-			This sends back a "yes" or "no" answer to the part of the game that asked if the name was taken.
+			// This sends back a "yes" or "no" answer to the part of the game that asked if the name was taken.
 			return usernameExists;
 		} catch (Exception error) {} // This ignores any mistakes that happen during the search and keeps the game running.
 
