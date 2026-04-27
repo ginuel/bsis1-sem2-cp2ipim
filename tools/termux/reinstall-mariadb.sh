@@ -76,4 +76,4 @@ echo "Note: Termux does not have a 'service' manager by default."
 echo "MariaDB is now running in the background."
 echo "Java Config: User=root, Pass='$DB_PASS', Host=127.0.0.1"
 
-./tools/run-mariadb.sh GameDatabase
+./tools/migrate.sh

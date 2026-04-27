@@ -1,17 +1,11 @@
 #!/bin/bash
 
 # Get the root directory
-REPO_DIR=$(git rev-parse --show-toplevel)
+REPO_DIR=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$REPO_DIR"
 
 # --- 1. Load config.properties ---
 CONFIG="config.properties"
-
-if [ ! -f "$CONFIG" ]; then
-    echo "Error: $CONFIG not found!"
-    exit 1
-fi
-
 get_prop() {
     grep "^${1}=" "$CONFIG" | cut -d'=' -f2 | tr -d '\r'
 }
@@ -23,55 +17,49 @@ DB_PASS=$(get_prop "db.password")
 DB_NAME=$(get_prop "db.name")
 
 echo "=== Starting MariaDB Service ==="
-# WSL standard service start
-sudo service mariadb start
+# Termux manual backgrounding
+mariadbd-safe &
 
 password=""
 [[ "$DB_PASS" ]] && password="-p$DB_PASS"
 
 # Wait for MariaDB to be ready
 until mysqladmin -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" $password ping --silent 2>/dev/null; do
-    echo "Waiting for MariaDB at $DB_HOST:$DB_PORT..."
+    echo "Waiting for MariaDB..."
     sleep 1
 done
-echo "MariaDB is ready!"
 
 # --- 2. Setup phpMyAdmin ---
 port=$(shuf -i 8000-9999 -n 1)
-host="127.0.0.1"
-# Standard WSL/Ubuntu phpMyAdmin path
-PMA_DIR="/usr/share/phpmyadmin"
+host="127.0.0.1" # Force IP to bypass socket path issues
+PMA_DIR="$PREFIX/share/phpmyadmin"
 
 if [ ! -d "$PMA_DIR" ]; then
-    echo "Error: phpMyAdmin not found at $PMA_DIR. Please install via 'sudo apt install phpmyadmin'"
+    echo "ERROR: phpMyAdmin not found. Install with: pkg install phpmyadmin"
     exit 1
 fi
 
 cd "$PMA_DIR" || exit
 
-# Create a fresh config from sample
-sudo cp config.sample.inc.php config.inc.php
-
-# Append the config settings (Note the escaped $ for PHP variables)
-CONF_CONTENT=$(printf "$(cat << "EOF"
-$cfg['Servers'][$i]['auth_type'] = 'config';
-$cfg['Servers'][$i]['host'] = '%s';
-$cfg['Servers'][$i]['user'] = '%s';
-$cfg['Servers'][$i]['password'] = '%s';
-$cfg['Servers'][$i]['AllowNoPassword'] = true;
+# Create the config.inc.php
+cat <<EOF > config.inc.php
+<?php
+\$i = 1;
+\$cfg['Servers'][\$i]['auth_type'] = 'config';
+\$cfg['Servers'][\$i]['host'] = '$host';
+\$cfg['Servers'][\$i]['port'] = '$DB_PORT';
+\$cfg['Servers'][\$i]['connect_type'] = 'tcp';
+\$cfg['Servers'][\$i]['user'] = '$DB_USER';
+\$cfg['Servers'][\$i]['password'] = '$DB_PASS';
+\$cfg['Servers'][\$i]['AllowNoPassword'] = true;
+\$cfg['blowfish_secret'] = '32_char_random_secret_for_termux_pma';
 EOF
-)" "$host" "$DB_USER" "$DB_PASS")
 
-echo "$CONF_CONTENT" | sudo tee -a config.inc.php > /dev/null
-
-# --- 3. Launch Google Chrome (Windows) ---
+# --- 3. Launch via termux-open-url ---
 URL="http://$host:$port/index.php?route=/database/sql&db=$DB_NAME"
-CHROME_PATH="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
+echo "Launching: $URL"
+termux-open-url "$URL"
 
-echo "Launching Chrome..."
-	"$CHROME_PATH" "$URL" &
-
-# --- 4. Start the PHP server ---
-echo "Starting PHP server on http://$host:$port"
-sudo php -S $host:$port
+# --- 4. Start PHP Server ---
+php -S $host:$port
 

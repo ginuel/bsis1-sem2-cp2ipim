@@ -30,29 +30,37 @@ done
 
 # --- 2. Setup phpMyAdmin ---
 port=$(shuf -i 8000-9999 -n 1)
-host="127.0.0.1"
+host="127.0.0.1" # Force IP to avoid socket errors
 PMA_DIR="/usr/share/phpmyadmin"
 
 cd "$PMA_DIR" || exit
 
-# Use 'EOF' to prevent bash from expanding $cfg and $i
-# printf then handles the %s injections
-CONF_CONTENT=$(printf "$(cat << 'EOF'
-$cfg['Servers'][$i]['auth_type'] = 'config';
-$cfg['Servers'][$i]['host'] = '%s';
-$cfg['Servers'][$i]['user'] = '%s';
-$cfg['Servers'][$i]['password'] = '%s';
-$cfg['Servers'][$i]['AllowNoPassword'] = true;
+# Create clean config.inc.php 
+sudo tee config.inc.php > /dev/null <<EOF
+<?php
+\$i = 1;
+\$cfg['Servers'][\$i]['auth_type'] = 'config';
+\$cfg['Servers'][\$i]['host'] = '$host';
+\$cfg['Servers'][\$i]['port'] = '$DB_PORT';
+\$cfg['Servers'][\$i]['connect_type'] = 'tcp';
+\$cfg['Servers'][\$i]['user'] = '$DB_USER';
+\$cfg['Servers'][\$i]['password'] = '$DB_PASS';
+\$cfg['Servers'][\$i]['AllowNoPassword'] = true;
+\$cfg['blowfish_secret'] = 'a8b7c6d5e4f3g2h1i0j9k8l7m6n5o4p3'; 
 EOF
-)" "$host" "$DB_USER" "$DB_PASS")
 
-# Write to the config file (requires sudo for /usr/share)
-echo "$CONF_CONTENT" | sudo tee config.inc.php > /dev/null
+# --- 3. Launch Windows Chrome ONLY ---
+URL="http://$host:$port/index.php?route=/database/sql&db=$DB_NAME"
+CHROME_PATH="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
 
-echo "Launching: http://$host:$port"
-# Open Windows browser from WSL
-explorer.exe "http://$host:$port/index.php?route=/database/sql&db=$DB_NAME"
+if [ -f "$CHROME_PATH" ]; then
+    echo "Launching Chrome: $URL"
+    "$CHROME_PATH" "$URL" &
+else
+    echo "ERROR: Chrome not found at $CHROME_PATH"
+    exit 1
+fi
 
-# Start the PHP server
+# --- 4. Start PHP Server ---
 sudo php -S $host:$port
 

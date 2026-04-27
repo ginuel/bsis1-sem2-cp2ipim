@@ -1,7 +1,7 @@
 import java.io.*;
 import java.net.Socket;
 import java.sql.*;
-import java.util*;
+import java.util.*;
 
 // This part of the program fills the game with initial information and fake players for testing.
 public class GameSeeder {
